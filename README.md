@@ -10,5 +10,6 @@ This library is still just the idea, when it is ready it will be published in [c
 
 - Similar libraries 
   - Nashpy - https://www.theoj.org/joss-papers/joss.00904/10.21105.joss.00904.pdf
+  - Alexrod - https://github.com/Axelrod-Python/Axelrod
 - Courses
   - Coursera - https://www.coursera.org/projects/game-theory-with-python
