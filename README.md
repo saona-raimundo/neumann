@@ -1,6 +1,6 @@
 neumann
 
-Game Theory algorithms written for Rust.
+Game Theory algorithms in Rust.
 
 # Disclaimer
 
