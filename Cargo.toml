@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 minilp = "0.2.2"
+ndarray = "0.13.1"

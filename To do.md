@@ -1,0 +1,8 @@
+- Implementation
+  - Solve matrix games through feasibility of primal-dual
+- Error-handling
+  - What to do if solving the LP fails?
+- Operability
+  - Accept any type of numbers to construct a MatrixGame
+- Tests
+  - Add various cases of solving matrix games
