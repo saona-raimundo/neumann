@@ -1,5 +1,3 @@
-neumann
-
 Game Theory algorithms in Rust.
 
 # Disclaimer
