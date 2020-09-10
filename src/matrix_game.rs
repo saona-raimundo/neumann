@@ -1,8 +1,13 @@
+
+pub use polynomial::PolyMatrixGame;
+
+mod polynomial;
+
 // use crate::traits::Game;
 use ndarray::{Axis, Array1, Array2};
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MatrixGame {
     matrix: Array2<f64>,
 }

@@ -4,7 +4,7 @@
 //! Therefore, correctness is the main focus.
 //!
 
-pub use matrix_game::MatrixGame;
+pub use matrix_game::{MatrixGame, PolyMatrixGame};
 // pub use traits::Game;
 
 mod matrix_game;
