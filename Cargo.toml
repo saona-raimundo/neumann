@@ -13,3 +13,4 @@ ndarray = "0.13.1"
 [dev-dependencies]
 test-case = "1.0.0"
 approx = "0.3.2"
+preexplorer = "0.3.2"
