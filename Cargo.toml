@@ -9,3 +9,7 @@ edition = "2018"
 [dependencies]
 minilp = "0.2.2"
 ndarray = "0.13.1"
+
+[dev-dependencies]
+test-case = "1.0.0"
+approx = "0.3.2"
