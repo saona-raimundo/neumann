@@ -1,6 +1,3 @@
-- Implement common traits
-  - Display
-
 # Polynomial Matrix Games
 
 - functional_form() -> ?? (Fn? (Vec, Vec)? (Poly, Poly)? Rational_function?)

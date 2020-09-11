@@ -4,9 +4,10 @@ mod polynomial;
 
 // use crate::traits::Game;
 use ndarray::{Array2, Axis};
+use std::fmt;
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MatrixGame {
     matrix: Array2<f64>,
 }
@@ -104,7 +105,17 @@ impl<T: Into<f64>> From<Array2<T>> for MatrixGame {
     }
 }
 
+impl Into<Array2<f64>> for MatrixGame {
+    fn into(self) -> Array2<f64> {
+        self.matrix
+    }
+}
 
+impl fmt::Display for MatrixGame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.matrix)
+    }
+}
 
 #[cfg(test)]
 mod tests {

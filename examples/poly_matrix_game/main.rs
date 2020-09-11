@@ -7,6 +7,8 @@ fn main() {
     let poly_matrix_game =
         PolyMatrixGame::from(vec![array![[0, 0], [-1, 1]], array![[2, -1], [0, 0]]]);
 
+    println!("{}", poly_matrix_game);
+
     // Computing
     let grid = ndarray::Array1::<f64>::linspace(-0., 1., 100);
     let values = grid.iter().map(|eps| poly_matrix_game.eval(*eps).value());

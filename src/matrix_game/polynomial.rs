@@ -1,9 +1,10 @@
 use crate::MatrixGame;
 use ndarray::Array2;
+use std::fmt;
 
 /// Polynomial matrix games are [Matrix Games](https://en.wikipedia.org/wiki/Zero-sum_game) whith  
 /// perturbation terms in terms of polynomials.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PolyMatrixGame {
     poly_matrix: Vec<Array2<i32>>,
 }
@@ -50,7 +51,7 @@ where
     ///
     /// If an empty vector is given.
     fn from(poly_matrix: Vec<Array2<T>>) -> Self {
-        assert!(poly_matrix.len() > 0);
+        assert!(!poly_matrix.is_empty());
 
         let mut converted_poly_matrix = Vec::new();
         for matrix in poly_matrix {
@@ -61,6 +62,28 @@ where
         PolyMatrixGame {
             poly_matrix: converted_poly_matrix,
         }
+    }
+}
+
+impl fmt::Display for PolyMatrixGame {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut string = String::new();
+        for i in 0..self.poly_matrix.len() {
+            string += &format!("{}", self.poly_matrix[i]);
+            if i < self.poly_matrix.len() - 1 {
+                string += "\n+\n"
+            }
+            if i > 0 {
+                string += &format!("eps^{}", i);
+            }
+        }
+        write!(f, "{}", string)
+    }
+}
+
+impl Into<Vec<Array2<i32>>> for PolyMatrixGame {
+    fn into(self) -> Vec<Array2<i32>> {
+        self.poly_matrix
     }
 }
 
