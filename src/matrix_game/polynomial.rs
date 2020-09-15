@@ -121,15 +121,12 @@ impl PolyMatrixGame {
         }
     }
 
-    /// # Remarks
-    /// 
-    /// The implementation could be optimize by deducing that some problems need not to be checked given previous results. 
-    /// For now, all exponentially-many problems are checked.
+    /// Checks exponentially-many LPs to decide uniform value-positivity.
     fn poly_is_uniform_value_positive(&self) -> bool {
         // Setting
         let dimensions = self.poly_matrix[0].shape();
 
-        // Add extra matrix of ones
+        // Add extra matrix of ones so that we can decide upon strict uniform value-positivity
         let mut poly_matrix = self.poly_matrix.clone();
         poly_matrix.push(Array2::from_elem(self.poly_matrix[0].raw_dim(), 1));
         let augmented_matrix_game = PolyMatrixGame::from(poly_matrix);
@@ -203,8 +200,10 @@ impl PolyMatrixGame {
 	        }
 
         	if let Ok(solution) = index_problem.solve() {
-        		if solution.objective() > 0.0 {
+        		if solution.objective() > std::f64::EPSILON {
         			return true
+        		} else if solution.objective() < -std::f64::EPSILON {
+        			return false
         		};
         	}
         }
@@ -290,6 +289,7 @@ mod tests {
     #[test_case( vec![ array![[0]], array![[0]], array![[0]] ], true ; "uniform value-positive easy polynomial")]
     #[test_case( vec![ array![[1, -1], [-1, 1]], array![[2, -2], [-2, 2]], array![[3, -3], [-3, 3]] ], true ; "uniform value-positive medium polynomial")]
     #[test_case( vec![ array![[1, 1], [1, 1]], array![[2, -1], [-1, 2]], array![[2, -1], [-1, 2]] ], true ; "uniform value-positive medium-hard polynomial")]
+    #[test_case( vec![ array![[1, 1], [1, 1]], array![[1, -1], [-1, 1]], array![[-2, -1], [-1, -2]] ], false ; "not uniform value-positive medium polynomial")]
     fn computing_uniform_value_positivity(poly_matrix: Vec<Array2<i32>>, expected_value: bool) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
         assert_eq!(poly_matrix_game.is_uniform_value_positive(), expected_value);
