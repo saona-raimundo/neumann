@@ -169,6 +169,8 @@ impl PolyMatrixGame {
         	.multi_cartesian_product();
 
         for index_vector in index_vectors {
+
+        	println!("{:?}", index_vector);
         	// Define the LP
         	let mut index_problem = problem.clone();
         	
@@ -188,7 +190,6 @@ impl PolyMatrixGame {
 		    // Value constrains: maximizing the last index
 		    for column_action in 0..dimensions[1] {
 		    	let matrix_index = index_vector[column_action];
-		    	println!("{:?}", augmented_matrix_game.poly_matrix[matrix_index]);
 	            let rewards = augmented_matrix_game.poly_matrix[matrix_index].index_axis(Axis(1), column_action).map(|x| *x as f64);
 	            let mut constrain = row_strategy
 	                .clone()
@@ -200,10 +201,10 @@ impl PolyMatrixGame {
 	        }
 
         	if let Ok(solution) = index_problem.solve() {
+        		println!("{:?}", solution);
+        		println!("{}", solution.objective());
         		if solution.objective() > std::f64::EPSILON {
         			return true
-        		} else if solution.objective() < -std::f64::EPSILON {
-        			return false
         		};
         	}
         }
@@ -289,6 +290,7 @@ mod tests {
     #[test_case( vec![ array![[0]], array![[0]], array![[0]] ], true ; "uniform value-positive easy polynomial")]
     #[test_case( vec![ array![[1, -1], [-1, 1]], array![[2, -2], [-2, 2]], array![[3, -3], [-3, 3]] ], true ; "uniform value-positive medium polynomial")]
     #[test_case( vec![ array![[1, 1], [1, 1]], array![[2, -1], [-1, 2]], array![[2, -1], [-1, 2]] ], true ; "uniform value-positive medium-hard polynomial")]
+    #[test_case( vec![ array![[1, 1], [1, 1], [1, 1]], array![[0, 0], [0, 0], [0, 1]], array![[1, -1], [1, -1], [1, -1]] ], true ; "uniform value-positive hard polynomial")]
     #[test_case( vec![ array![[1, 1], [1, 1]], array![[1, -1], [-1, 1]], array![[-2, -1], [-1, -2]] ], false ; "not uniform value-positive medium polynomial")]
     fn computing_uniform_value_positivity(poly_matrix: Vec<Array2<i32>>, expected_value: bool) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
