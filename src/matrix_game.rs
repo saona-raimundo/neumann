@@ -97,6 +97,37 @@ impl MatrixGame {
         self.matrix.shape()[1]
     }
 
+    fn input_strategy(&self) -> Array1<f64> {
+        println!("Enter you mixed strategy, one probability at a time.");
+
+        let mut weights = Array1::from_elem(self.row_actions(), 0.);
+        for i in 0..self.row_actions() {
+            let mut weight = String::new();
+
+            std::io::stdin()
+                .read_line(&mut weight)
+                .expect("Failed to read line");
+
+            let mut ns = fasteval::EmptyNamespace;
+            match fasteval::ez_eval(&weight, &mut ns) {
+                Ok(val) => {
+                	if val.is_sign_positive() {
+                		weights[i] = val	
+                	} else {
+                		eprintln!("Probabilities must be greater or equal to zero");
+                		break;
+                	}
+                },
+                Err(e) => {
+                    eprintln!("{}", e);
+                    break;
+                },
+            }
+        }
+
+        weights
+    }
+
 }
 
 impl crate::Playable for MatrixGame {
@@ -105,29 +136,17 @@ impl crate::Playable for MatrixGame {
     /// 
     /// The user is asked to input a strategy, one probability at a time. 
     /// For robustness, inputs are read as weights: a renormalization is performed to obtain the mixed strategy.
+    /// 
+    /// # Remarks
+    /// 
+    /// Values are parsed using the [fasteval] crate, accepting a big range of inputs.
+    /// 
+    /// [fasteval]: https://crates.io/crates/fasteval
     fn play(&self) {
         println!("Welcome! You are playing the following matrix game:\n{}", self);
 
         loop {
-            println!("Enter you mixed strategy, one probability at a time.");
-
-            let mut weights = Array1::from_elem(self.row_actions(), 0.);
-            for i in 0..self.row_actions() {
-                let mut weight = String::new();
-
-                std::io::stdin()
-                    .read_line(&mut weight)
-                    .expect("Failed to read line");
-
-                let mut ns = fasteval::EmptyNamespace;
-                match fasteval::ez_eval(&weight, &mut ns) {
-                    Ok(val) => weights[i] = val,
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        break;
-                    },
-                }
-            }
+        	let weights = self.input_strategy();
 
             // Reward
             let reward = weights.dot(&self.matrix).iter().cloned().fold(std::f64::NAN, f64::min) / weights.sum();
