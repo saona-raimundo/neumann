@@ -1,10 +1,3 @@
-# Traits
-
-- Game
-  - play()
-  - ... and helper methods
-    - strategies() or something
-
 # Polynomial Matrix Games
 
 - functional_form() -> ?? (Fn? (Vec, Vec)? (Poly, Poly)? Rational_function?)

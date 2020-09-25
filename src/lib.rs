@@ -5,10 +5,12 @@
 //!
 
 pub use matrix_game::{MatrixGame, PolyMatrixGame};
-// pub use traits::Game;
+pub use traits::Playable;
 
 mod matrix_game;
-// mod traits;
+mod traits;
+
+
 
 // #[cfg(test)]
 // mod tests {

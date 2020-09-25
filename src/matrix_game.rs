@@ -3,7 +3,7 @@ pub use polynomial::PolyMatrixGame;
 mod polynomial;
 
 // use crate::traits::Game;
-use ndarray::{Array2, Axis};
+use ndarray::{Array1, Array2, Axis};
 use std::fmt;
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
@@ -86,6 +86,65 @@ impl MatrixGame {
 
         (optimal_row_strategy, optimal_column_strategy, value)
     }
+
+    /// Number of row actions
+    pub fn row_actions(&self) -> usize {
+        self.matrix.shape()[0]
+    }
+
+    /// Number of column actions
+    pub fn column_actions(&self) -> usize {
+        self.matrix.shape()[1]
+    }
+
+}
+
+impl crate::Playable for MatrixGame {
+
+    /// Starts a REPL to play the game.
+    /// 
+    /// The user is asked to input a strategy, one probability at a time. 
+    /// For robustness, inputs are read as weights: a renormalization is performed to obtain the mixed strategy.
+    fn play(&self) {
+        println!("Welcome! You are playing the following matrix game:\n{}", self);
+
+        loop {
+            println!("Enter you mixed strategy, one probability at a time.");
+
+            let mut weights = Array1::from_elem(self.row_actions(), 0.);
+            for i in 0..self.row_actions() {
+                let mut weight = String::new();
+
+                std::io::stdin()
+                    .read_line(&mut weight)
+                    .expect("Failed to read line");
+
+                let mut ns = fasteval::EmptyNamespace;
+                match fasteval::ez_eval(&weight, &mut ns) {
+                    Ok(val) => weights[i] = val,
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        break;
+                    },
+                }
+            }
+
+            // Reward
+            let reward = weights.dot(&self.matrix).iter().cloned().fold(std::f64::NAN, f64::min) / weights.sum();
+            println!("You obtained: {}\n", reward);
+
+            // Repeating?
+            println!("Keep playing?(y/n)");
+            let mut repeat = String::new();
+            std::io::stdin()
+                .read_line(&mut repeat)
+                .expect("Failed to read line");
+            if !(repeat.trim() == "y") {
+                println!("Thank you for playing!");
+                break;
+            }
+        }
+    }
 }
 
 impl<T: Into<f64>> From<Array2<T>> for MatrixGame {
@@ -128,6 +187,17 @@ mod tests {
     fn construction() {
         let matrix = array![[0, 1], [1, 0],];
         MatrixGame::from(matrix);
+    }
+
+    #[test_case( array![[0, 1], [1, 0]],  2, 2 ; "2x2")]
+    #[test_case( array![[0, 1, -1], [-1, 0, 1]],  2, 3 ; "2x3")]
+    fn checking_dimensions<T>(matrix: Array2<T>, row_actions: usize, column_actions: usize)
+    where
+        T: Into<f64>,
+    {
+        let matrix_game = MatrixGame::from(matrix);
+        assert_eq!(row_actions, matrix_game.row_actions());
+        assert_eq!(column_actions, matrix_game.column_actions());
     }
 
     #[test_case( array![[0, 1], [1, 0]],  0.5 ; "positive value")]
