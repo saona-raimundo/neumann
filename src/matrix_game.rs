@@ -31,13 +31,33 @@ impl MatrixGame {
     }
 
     /// Returns `true` if both players have the same number of possible actions.
+    ///
+    /// # Examples
+    ///
+    /// Rock-paper-scisors is a square game.
+    /// ```
+    /// # use ndarray::array;
+    /// # use neumann::MatrixGame;
+    /// let rewards = array![[0, 1, -1], [1, -1, 0], [-1, 0, 1]];
+    /// let matrix_game = MatrixGame::from(rewards);
+    /// assert!(matrix_game.is_square());
+    /// ```
+    ///
+    /// A 2x3 game is not square.
+    /// ```
+    /// # use ndarray::array;
+    /// # use neumann::MatrixGame;
+    /// let rewards = array![[0, 1, -1], [0, -1, 2]];
+    /// let matrix_game = MatrixGame::from(rewards);
+    /// assert!(!matrix_game.is_square());
+    /// ```
     pub fn is_square(&self) -> bool {
         let shape = self.matrix.shape();
         shape[0] == shape[1]
     }
 
     /// Returns `true` if both players have the same number of possible actions
-    /// and a unique optimal strategy which has full support.
+    /// and a unique optimal strategy which has full support[^1].
     ///
     /// # Examples
     ///
@@ -58,6 +78,11 @@ impl MatrixGame {
     /// let matrix_game = MatrixGame::from(rewards);
     /// assert!(!matrix_game.is_completely_mixed());
     /// ```
+    ///
+    /// [^1]: Kaplansky, I. (1945). 
+    ///       [*A Contribution to Von Neumann's Theory of Games*](https://www.jstor.org/stable/1969164). 
+    ///       Annals of Mathematics, 46(3), second series, 474-479. 
+    ///       doi:10.2307/1969164
     pub fn is_completely_mixed(&self) -> bool {
         if !self.is_square() {
             false
@@ -105,7 +130,7 @@ impl MatrixGame {
     }
 
     /// Returns the indices, together with the corresponding sub-matrix game,
-    /// of a square sub-matrix which is completely-mixed
+    /// of a square sub-matrix which is *completely-mixed*[^1]
     /// whose value is the same as the original game.
     ///
     /// The first vector of indices corresponds to actions of the row player.
@@ -140,6 +165,10 @@ impl MatrixGame {
     /// ```
     ///
     /// [is_completely_mixed]: struct.MatrixGame.html#method.is_completely_mixed
+    /// [^1]: Kaplansky, I. (1945). 
+    ///       [*A Contribution to Von Neumann's Theory of Games*](https://www.jstor.org/stable/1969164). 
+    ///       Annals of Mathematics, 46(3), second series, 474-479. 
+    ///       doi:10.2307/1969164
     pub fn kernel_completely_mixed(&self) -> (Vec<usize>, Vec<usize>, MatrixGame) {
         // Setting up kernel
         let mut kernel_rows: HashSet<usize> = (0..self.actions_row()).collect();

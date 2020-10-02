@@ -1,37 +1,14 @@
-# Matrix Games
-
-- [x] is_square() -> bool
-- [x] best_row_reduction -> usize
-  - [x] is_completely_mixed() -> bool
-  - [x] best_column_reduction -> usize
-    - [x] reduce_to_square(&mut self)
-    - [x] completely_mixed_kernel() -> (Vec<usize>, Vec<usize>)
-      Maybe use std::collections::HashSet for the iterative procedure of reduction
-
 # Polynomial Matrix Games
 
-- functional_form() -> ?? (Fn? (Vec, Vec)? (Poly, Poly)? Rational_function?)
-  - Need a Kernel!!
+- [x] functional_form_value() -> Ratio<Polynomial<i32>>
+- functional_form() -> (Ratio<Polynomial<i32>>, Ratio<Polynomial<i32>>)
+  - Need a Kernel that maintain optimal strategies!!
     
-    - Look at Kaplansky 1945 (doi: 10.2307/1969164)
-  - Helper crates
-
-    - [polynomials](https://crates.io/crates/polynomials)
-      - Suggestions: 
-
-        - Implement traits
-
-          - std::fmt::Display
+    - Kaplansky 1945 (doi: 10.2307/1969164) gives only the value
 
 
 # POMDPs
 
 - Implement from the basics
 - play()
-
-# Next release
-
-## Documentation
-
-- Add reference for kernel_completely_mixed
 

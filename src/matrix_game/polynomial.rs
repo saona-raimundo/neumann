@@ -283,14 +283,14 @@ impl PolyMatrixGame {
     /// # use polynomials::poly;
     /// let poly_matrix = vec![array![[1, -1], [-1, 1]], array![[1, -3], [0, 2]]];
     /// let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-    /// let value_function = poly_matrix_game.functional_form();
+    /// let value_function = poly_matrix_game.functional_form_value();
     /// assert_eq!(value_function.numer().degree(), 2);
     /// assert_eq!(value_function.numer(), &poly![0, 0, 2]);
     /// assert_eq!(value_function.denom(), &poly![4, 6]);
     /// ```
     ///
     /// [epsilon_kernel_constant]: struct.PolyMatrixGame.html#method.epsilon_kernel_constant
-    pub fn functional_form(&self) -> Ratio<Polynomial<i32>> {
+    pub fn functional_form_value(&self) -> Ratio<Polynomial<i32>> {
         let matrix_game = self.eval(self.epsilon_kernel_constant());
         let (kernel_rows, kernel_columns, _) = matrix_game.kernel_completely_mixed();
         let poly_array: Array2<Polynomial<i32>> = self.clone().into();
@@ -467,15 +467,15 @@ mod tests {
 
     #[test_case( vec![ array![[1, -1], [-1, 1]], array![[1, -3], [0, 2]] ], Ratio::new_raw(poly![0, 0, 2], poly![4, 6]) ; "quadratic")]
     #[test_case( vec![ array![[0, 0], [-1, 1]], array![[2, -1], [0, 0]] ], Ratio::new_raw(poly![0, 1], poly![2, 3]) ; "linear")]
-    fn computing_functional_form(
+    fn computing_functional_form_value(
         poly_matrix: Vec<Array2<i32>>,
         expected_rational: Ratio<Polynomial<i32>>,
     ) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-        let functional_form = poly_matrix_game.functional_form();
+        let functional_form_value = poly_matrix_game.functional_form_value();
         println!("{}", poly_matrix_game);
-        println!("{:?}", functional_form);
-        assert_eq!(functional_form.numer(), expected_rational.numer());
-        assert_eq!(functional_form.denom(), expected_rational.denom());
+        println!("{:?}", functional_form_value);
+        assert_eq!(functional_form_value.numer(), expected_rational.numer());
+        assert_eq!(functional_form_value.denom(), expected_rational.denom());
     }
 }
