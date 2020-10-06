@@ -1,3 +1,10 @@
+# LPs with errors
+
+- Reduction to PlyMatrixGame
+- is_weakly_robust
+- is_strongly_robust
+- functional_form
+
 # Polynomial Matrix Games
 
 - [x] functional_form_value() -> Ratio<Polynomial<i32>>
