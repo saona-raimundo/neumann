@@ -1,10 +1,12 @@
 Game Theory algorithms in Rust.
 
-# Disclaimer
+Neumann provides utilities to research and implement game-theoretical algorithms. 
 
-This library is still just the idea, when it is ready it will be published in [crates.io](www.crates.io).
+# Features
 
-# Resources
+- Matrix Games
+
+# Related resources
 
 - Similar libraries 
   - [Nashpy](https://github.com/drvinceknight/Nashpy) - Nash equilibria on 2 player games (python). See [paper](https://www.theoj.org/joss-papers/joss.00904/10.21105.joss.00904.pdf).

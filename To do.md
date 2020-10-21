@@ -1,6 +1,6 @@
 # LPs with errors
 
-- Reduction to PlyMatrixGame
+- Reduction to PolyMatrixGame
 - is_weakly_robust
 - is_strongly_robust
 - functional_form

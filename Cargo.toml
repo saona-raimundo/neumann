@@ -3,6 +3,16 @@ name = "neumann"
 version = "0.1.0"
 authors = ["Raimundo Saona <rasa200@gmail.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rasa200/neumann"
+documentation = "https://docs.rs/neumann"
+homepage = "https://crates.io/crates/neumann"
+description = """
+Game Theory algorithms in Rust.
+"""
+keywords = ["math", "mathematics"]
+categories = ["algorithms", "science", "mathematics"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,8 +21,8 @@ minilp = "0.2.2"
 ndarray = "0.13.1"
 itertools = "0.9.0"
 fasteval = "0.2.4"
-polynomials = { path = "../polynomials"}
 num-rational = "0.3.0"
+polynomials = "0.2.4"
 
 [dev-dependencies]
 test-case = "1.0.0"
