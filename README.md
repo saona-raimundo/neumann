@@ -1,3 +1,10 @@
+# neumann
+
+[![Download](https://img.shields.io/crates/d/neumann)](https://crates.io/crates/neumann)
+[![License](https://img.shields.io/crates/l/neumann)](https://github.com/saona-raimundo/neumann)
+[![Docs](https://docs.rs/neumann/badge.svg)](https://docs.rs/neumann/)
+[![Crate](https://img.shields.io/crates/v/neumann.svg)](https://crates.io/crates/neumann)
+
 Game Theory algorithms in Rust.
 
 Neumann provides utilities to research and implement game-theoretical algorithms. 
