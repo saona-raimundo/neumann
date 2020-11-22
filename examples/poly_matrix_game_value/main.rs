@@ -2,7 +2,7 @@
 //! 1) Evaluating it and solving the corresponding matrix game.
 //! 2) Computing the functional form and evaluating this function.
 use ndarray::array;
-use neumann::PolyMatrixGame;
+use neumann::{PolyMatrixGame, value_positivity::ValuePositivity};
 use preexplorer::prelude::*;
 
 fn main() {
@@ -15,7 +15,7 @@ fn main() {
     let values: Vec<f64> = grid.iter().map(|eps| poly_matrix_game.eval(*eps).value()).collect();
 
     // Exact form of the value function
-    let value_function = poly_matrix_game.functional_form_value();
+    let value_function = poly_matrix_game.functional_form().output;
     let numer: polynomials::Polynomial<f64> = value_function.numer()
     	.iter()
     	.map(|v| *v as f64)

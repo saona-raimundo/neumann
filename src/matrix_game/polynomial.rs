@@ -3,7 +3,7 @@ mod helper;
 
 use helper::{cofactor, determinant};
 
-use crate::MatrixGame;
+use crate::{Certified, MatrixGame};
 use itertools::Itertools;
 use ndarray::{Array2, Axis};
 use num_rational::Ratio;
@@ -45,65 +45,8 @@ impl PolyMatrixGame {
         MatrixGame::from(matrix)
     }
 
-    /// Returns a value for the error term `epsilon` such that
-    /// kernels of optimal strategies are guaranteed not to change between this value and zero.
-    ///
-    /// In particular, the value function is a rational function between zero and this value.
-    ///
-    /// # Examples
-    ///
-    /// Error is noticed by the row player only if greater than one.
-    /// ```
-    /// # use ndarray::array;
-    /// # use neumann::PolyMatrixGame;
-    /// let poly_matrix = vec![array![[1, 1], [0, 0]], array![[0, 0], [1, 1]]];
-    /// let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-    /// assert!(poly_matrix_game.epsilon_kernel_constant() <= 1.);
-    /// ```
-    pub fn epsilon_kernel_constant(&self) -> f64 {
-        let m: f64 = *self.poly_matrix[0].shape().iter().max().unwrap() as f64;
-        let b: f64 = self
-            .poly_matrix
-            .iter()
-            .map(|matrix| matrix.iter().map(|x| x.abs()).max().unwrap())
-            .max()
-            .unwrap() as f64;
-        let k: f64 = (self.poly_matrix.len() - 1) as f64;
-        f64::min(
-            1.0,
-            (2. * m * k).powf(-m * k)
-                * (b * m).powf(m * (1. - 2. * m * k))
-                * (m * k + 1.).powf(1. - 2. * m * k),
-        )
-    }
-
-    /// Checks if the polynomail matrix game has at least the value of the error-free game at a right neigborhood of zero.
-    ///
-    /// That is, there exists a positive threshold for which the value of the perturbed matrix game is at least as much as
-    /// the value of the matrix game corresponding to evaluating the polynomial matrix game at zero.
-    pub fn is_value_positive(&self) -> bool {
-        self.eval(self.epsilon_kernel_constant()).value() >= self.eval(0.).value()
-    }
-
     pub fn degree(&self) -> usize {
         self.poly_matrix.len() - 1
-    }
-
-    /// Checks if the polynomail matrix game has a fixed strategy that ensures at least the value of the error-free game at a right neigborhood of zero.
-    ///
-    /// That is, there exists a fixed strategy and a positive threshold for which the reward given by this strategy
-    /// in the perturbed matrix game is at least as much as
-    /// the value of the matrix game corresponding to evaluating the polynomial matrix game at zero.
-    pub fn is_uniform_value_positive(&self) -> bool {
-        if self.is_value_positive() {
-            if self.degree() == 1 {
-                self.linear_is_uniform_value_positive()
-            } else {
-                self.poly_is_uniform_value_positive()
-            }
-        } else {
-            false
-        }
     }
 
     fn linear_is_uniform_value_positive(&self) -> bool {
@@ -261,54 +204,6 @@ impl PolyMatrixGame {
         false
     }
 
-    /// Returns the value function close to zero.
-    ///
-    /// The value function close to zero is a rational function. At zero and far from zero,
-    /// the value function might correspond to another rational function. In general,
-    /// the value function of a polynomial matrix game is a piecewise rational function.
-    /// See [epsilon_kernel_constant] to have a bound on the interval in which this rational function
-    /// is indeed the value function.
-    ///
-    /// # Remarks
-    ///
-    /// The `Ratio` returned is not simplified, i.e. there might be a polynomial factor in common
-    /// between the numerator and denominator.
-    ///
-    /// # Examples
-    ///
-    /// Two-actions linear matrix games can lead to quadratic numerator in the value function.
-    /// ```
-    /// # use ndarray::array;
-    /// # use neumann::PolyMatrixGame;
-    /// # use polynomials::poly;
-    /// let poly_matrix = vec![array![[1, -1], [-1, 1]], array![[1, -3], [0, 2]]];
-    /// let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-    /// let value_function = poly_matrix_game.functional_form_value();
-    /// assert_eq!(value_function.numer().degree(), 2);
-    /// assert_eq!(value_function.numer(), &poly![0, 0, 2]);
-    /// assert_eq!(value_function.denom(), &poly![4, 6]);
-    /// ```
-    ///
-    /// [epsilon_kernel_constant]: struct.PolyMatrixGame.html#method.epsilon_kernel_constant
-    pub fn functional_form_value(&self) -> Ratio<Polynomial<i32>> {
-        let matrix_game = self.eval(self.epsilon_kernel_constant());
-        let (kernel_rows, kernel_columns, _) = matrix_game.kernel_completely_mixed();
-        let poly_array: Array2<Polynomial<i32>> = self.clone().into();
-        let mut kernel_poly_array =
-            Array2::from_elem((kernel_rows.len(), kernel_columns.len()), poly![0]);
-        for i in 0..kernel_rows.len() {
-            for j in 0..kernel_columns.len() {
-                kernel_poly_array[[i, j]] = poly_array[[kernel_rows[i], kernel_columns[j]]].clone();
-            }
-        }
-        let numer: Polynomial<i32> = determinant(&kernel_poly_array);
-        let denom: Polynomial<i32> = (0..kernel_rows.len())
-            .cartesian_product(0..kernel_columns.len())
-            .map(|(i, j)| cofactor(&kernel_poly_array, i, j))
-            .fold(poly![0], |acc, p| acc + p);
-
-        Ratio::new_raw(numer, denom)
-    }
 
     /// Shape of the matrix game.
     ///
@@ -341,6 +236,167 @@ impl PolyMatrixGame {
     pub fn actions_column(&self) -> usize {
         self.shape()[1]
     }
+}
+
+impl crate::value_positivity::ValuePositivity<Vec<f64>, Vec<f64>, ()> for PolyMatrixGame {
+    /// Returns a value for the error term `epsilon` such that
+    /// kernels of optimal strategies are guaranteed not to change between this value and zero.
+    ///
+    /// In particular, the value function is a rational function between this value and zero.
+    ///
+    /// # Examples
+    ///
+    /// Error is noticed by the row player only if epsilon is greater than one.
+    /// ```
+    /// # use ndarray::array;
+    /// # use neumann::{PolyMatrixGame, value_positivity::ValuePositivity};
+    /// let poly_matrix = vec![array![[1, 1], [0, 0]], array![[0, 0], [1, 1]]];
+    /// let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
+    /// assert!(poly_matrix_game.epsilon_kernel_constant() <= 1.);
+    /// ```
+    fn epsilon_kernel_constant(&self) -> f64 {
+        let m: f64 = *self.poly_matrix[0].shape().iter().max().unwrap() as f64;
+        let b: f64 = self
+            .poly_matrix
+            .iter()
+            .map(|matrix| matrix.iter().map(|x| x.abs()).max().unwrap())
+            .max()
+            .unwrap() as f64;
+        let k: f64 = (self.poly_matrix.len() - 1) as f64;
+        f64::min(
+            1.0,
+            (2. * m * k).powf(-m * k)
+                * (b * m).powf(m * (1. - 2. * m * k))
+                * (m * k + 1.).powf(1. - 2. * m * k),
+        )
+    }
+
+    /// Checks if the polynomail matrix game has at least the value of the error-free game at a right neigborhood of zero.
+    ///
+    /// That is, there exists a positive threshold for which the value of the perturbed matrix game is at least as much as
+    /// the value of the matrix game corresponding to evaluating the polynomial matrix game at zero.
+    /// 
+    /// # Output
+    ///
+    /// Boolean.
+    ///
+    /// # Certificate
+    ///
+    /// If the answer is true, the certificate is a strategy for the row player that ensures a non-negative reward 
+    /// for the perturbation given by `epsilon_kernel_constant`.
+    /// 
+    /// If the answer is false, the certificate is a strategy for the colmun player that ensures a negative reward 
+    /// for the column player, for the perturbation given by `epsilon_kernel_constant`.
+    /// 
+    /// Recall that the value function does not change sign from between this perturbation and zero.
+    fn is_value_positive(&self) -> Certified<bool, Vec<f64>> {
+        let (row_strategy, column_strategy, value) = self.eval(self.epsilon_kernel_constant()).solve();
+        match value >= self.eval(0.).value() {
+             true => Certified::from((true, row_strategy)),
+             false => Certified::from((false, column_strategy)),
+         }
+
+        
+    }
+
+    /// Checks the rewards given by the strategy.
+    fn is_value_positive_checker(&self, certified_output: Certified<bool, Vec<f64>>) -> bool {
+        match certified_output.output {
+            true => {
+                let rewards = ndarray::Array1::from(certified_output.certificate).dot(self.eval(self.epsilon_kernel_constant()).matrix());
+                rewards.iter().all(|&v| v >= 0.0)
+            },
+            false => {
+                let rewards = self.eval(self.epsilon_kernel_constant()).matrix().dot(&ndarray::Array1::from(certified_output.certificate));
+                rewards.iter().all(|&v| v < 0.0)
+            },
+        }
+    }
+
+    /// Checks if the polynomail matrix game has at least the value of the error-free game at a right neigborhood of zero.
+    ///
+    /// That is, there exists a positive threshold for which the value of the perturbed matrix game is at least as much as
+    /// the value of the matrix game corresponding to evaluating the polynomial matrix game at zero.
+    fn is_value_positive_uncertified(&self) -> bool {
+        self.eval(self.epsilon_kernel_constant()).value() >= self.eval(0.).value()
+    }
+
+    /// Checks if the polynomail matrix game has a fixed strategy that ensures at least the value of the error-free game at a right neigborhood of zero.
+    ///
+    /// That is, there exists a fixed strategy and a positive threshold for which the reward given by this strategy
+    /// in the perturbed matrix game is at least as much as
+    /// the value of the matrix game corresponding to evaluating the polynomial matrix game at zero.
+    fn is_uniform_value_positive(&self) -> Certified<bool, Vec<f64>> {
+        todo!()
+
+        // if self.is_value_positive() {
+        //     if self.degree() == 1 {
+        //         self.linear_is_uniform_value_positive()
+        //     } else {
+        //         self.poly_is_uniform_value_positive()
+        //     }
+        // } else {
+        //     false
+        // }
+
+    }
+
+    /// 
+    fn is_uniform_value_positive_checker(&self, _: Certified<bool, Vec<f64>>) -> bool { todo!() }
+
+    /// Returns the value function close to zero.
+    ///
+    /// The value function close to zero is a rational function. At zero and far from zero,
+    /// the value function might correspond to another rational function. In general,
+    /// the value function of a polynomial matrix game is a piecewise rational function.
+    /// See [epsilon_kernel_constant] to have a bound on the interval in which this rational function
+    /// is indeed the value function.
+    ///
+    /// # Remarks
+    ///
+    /// The `Ratio` returned is not simplified, i.e. there might be a polynomial factor in common
+    /// between the numerator and denominator.
+    ///
+    /// # Examples
+    ///
+    /// Two-actions linear matrix games can lead to quadratic numerator in the value function.
+    /// ```
+    /// # use ndarray::array;
+    /// # use neumann::{PolyMatrixGame, value_positivity::ValuePositivity};
+    /// # use polynomials::poly;
+    /// let poly_matrix = vec![array![[1, -1], [-1, 1]], array![[1, -3], [0, 2]]];
+    /// let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
+    /// let value_function = poly_matrix_game.functional_form_value();
+    /// assert_eq!(value_function.numer().degree(), 2);
+    /// assert_eq!(value_function.numer(), &poly![0, 0, 2]);
+    /// assert_eq!(value_function.denom(), &poly![4, 6]);
+    /// ```
+    ///
+    /// [epsilon_kernel_constant]: struct.PolyMatrixGame.html#method.epsilon_kernel_constant
+    fn functional_form(&self) -> Certified<num_rational::Ratio<polynomials::Polynomial<i32>>, ()> { 
+        todo!()
+
+        // let matrix_game = self.eval(self.epsilon_kernel_constant());
+        // let (kernel_rows, kernel_columns, _) = matrix_game.kernel_completely_mixed();
+        // let poly_array: Array2<Polynomial<i32>> = self.clone().into();
+        // let mut kernel_poly_array =
+        //     Array2::from_elem((kernel_rows.len(), kernel_columns.len()), poly![0]);
+        // for i in 0..kernel_rows.len() {
+        //     for j in 0..kernel_columns.len() {
+        //         kernel_poly_array[[i, j]] = poly_array[[kernel_rows[i], kernel_columns[j]]].clone();
+        //     }
+        // }
+        // let numer: Polynomial<i32> = determinant(&kernel_poly_array);
+        // let denom: Polynomial<i32> = (0..kernel_rows.len())
+        //     .cartesian_product(0..kernel_columns.len())
+        //     .map(|(i, j)| cofactor(&kernel_poly_array, i, j))
+        //     .fold(poly![0], |acc, p| acc + p);
+
+        // Ratio::new_raw(numer, denom)
+    }
+
+    /// 
+    fn functional_form_checker(&self, _: Certified<num_rational::Ratio<polynomials::Polynomial<i32>>, ()>) -> bool { todo!() }
 }
 
 impl<T> From<Vec<Array2<T>>> for PolyMatrixGame
@@ -434,6 +490,7 @@ mod tests {
     use super::*;
     use ndarray::array;
     use test_case::test_case;
+    use crate::value_positivity::ValuePositivity;
     // use approx::assert_ulps_eq;
 
     #[test_case( vec![array![[0, 1], [1, 0]], array![[0, 1], [1, 0]]] ; "valid construction")]
@@ -448,7 +505,8 @@ mod tests {
     #[test_case( vec![ array![[0, 1], [1, 0]], array![[0, -1], [-1, 0]] ],  false ; "not value-positive")]
     fn computing_value_positivity(poly_matrix: Vec<Array2<i32>>, expected_value: bool) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-        assert_eq!(poly_matrix_game.is_value_positive(), expected_value);
+        assert_eq!(poly_matrix_game.is_value_positive().output, expected_value);
+        assert_eq!(poly_matrix_game.is_value_positive_checker(poly_matrix_game.is_value_positive()), expected_value);
     }
 
     #[test_case( vec![ array![[0, 1], [1, 0]], array![[0, 1], [1, 0]] ],  true ; "uniform value-positive easy")]
@@ -462,7 +520,8 @@ mod tests {
     #[test_case( vec![ array![[1, 1], [1, 1]], array![[1, -1], [-1, 1]], array![[-2, -1], [-1, -2]] ], false ; "not uniform value-positive medium polynomial")]
     fn computing_uniform_value_positivity(poly_matrix: Vec<Array2<i32>>, expected_value: bool) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-        assert_eq!(poly_matrix_game.is_uniform_value_positive(), expected_value);
+        assert_eq!(poly_matrix_game.is_uniform_value_positive().output, expected_value);
+        assert_eq!(poly_matrix_game.is_uniform_value_positive_checker(poly_matrix_game.is_uniform_value_positive()), expected_value);
     }
 
     #[test_case( vec![ array![[1, -1], [-1, 1]], array![[1, -3], [0, 2]] ], Ratio::new_raw(poly![0, 0, 2], poly![4, 6]) ; "quadratic")]
@@ -472,10 +531,12 @@ mod tests {
         expected_rational: Ratio<Polynomial<i32>>,
     ) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-        let functional_form_value = poly_matrix_game.functional_form_value();
+        let functional_form_value = poly_matrix_game.functional_form().output;
         println!("{}", poly_matrix_game);
         println!("{:?}", functional_form_value);
         assert_eq!(functional_form_value.numer(), expected_rational.numer());
         assert_eq!(functional_form_value.denom(), expected_rational.denom());
+        assert!(poly_matrix_game.functional_form_checker(poly_matrix_game.functional_form()));
+
     }
 }
