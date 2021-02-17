@@ -1,3 +1,7 @@
+# Playable
+
+- It should create a yew app to play the game :) 
+
 # Certifying algorithms
 
 - PolyMatrixGame
