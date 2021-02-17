@@ -1,3 +1,65 @@
+# Traits
+## Game forms
+### Strategic
+Static
+``` rust
+trait Strategic<Utility: Num> // We want to allow different implementation for different numerical types. 
+// Would one need to annotate which utility type is using if there were many implamantations??
+const N: usize; // num_players
+type Action;
+type ActionSet = Vec<Action>;
+
+fn strategies(&self) -> [ActionSet; N];
+fn action_set(&self, player: usize) -> ActionSet {
+  self.strategies[player]
+}
+fn payoffs(&self, [Action; N]) -> Utility;
+fn num_players(&self) -> usize {
+  N
+}
+fn min_social_payoff(&self) -> Utility {
+  todo!()
+}
+fn player_payoffs(&self) -> Iterator<Item = Utility> {
+  todo!()
+}
+fn social_payoffs(&self) -> Iterator<Item = Utility> {
+  todo!()
+}
+```
+Mutable
+``` rust
+trait StrategicMut<Utility>: Strategic<Utility>
+fn remove_action(&mut self, player: usize, action: usize) -> Self;
+```
+
+### Extensive
+
+## Solutions
+### Equilibriums
+Enum
+- Nash
+- Correlated
+- Evolutionary
+- Policy
+### Strategies
+Enum
+- Pure
+- Mixed
+### Nash
+``` rust
+trait Nash<Utility>
+const N: usize; // num_players
+type Action;
+type Solution = ([Action; N], [Utility; N]);
+
+fn all_solutions(&self) -> Iterator<Solution>;
+fn one_solution(&self) -> Solution;
+fn one_solution_for_player(&self, player: usize) -> (Action, Utility);
+```
+# Games
+## Bimatrix
+
 # Certifying algorithms
 
 - PolyMatrixGame
