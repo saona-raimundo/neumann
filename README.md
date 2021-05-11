@@ -24,3 +24,5 @@ Neumann provides utilities to research and implement game-theoretical algorithms
   - [Dynamo](https://www.ssc.wisc.edu/~whs/dynamo/index.html) - Diagams for evolutionary game dynamics (Mathematica).
 - Courses
   - Coursera - https://www.coursera.org/projects/game-theory-with-python
+- Papers
+  - [StochasticGameSolver: Computing Stationary Equilibria for Stochastic Games](https://doi.org/10.1016/j.jet.2003.10.001) - User-friendly program for computing stationary equilibria for stochastic games (Fortran).

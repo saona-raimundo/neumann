@@ -1,4 +1,21 @@
+# Computing tools
+
+## LP solver
+
+Change to certifying LP solvers!
+
+- [A review of computation of mathematically rigorous bounds on optima of linear programs](https://link.springer.com/article/10.1007/s10898-016-0489-2)
+- [Certifying feasibility and objective value of linear programs](https://www.sciencedirect.com/science/article/pii/S0167637712000272)
+  - [Complete thesis](https://domino.mpi-inf.mpg.de/imprs/imprspubl.nsf/0/B1A302821896EA31C1257E4C002468F6/$file/dumitriu_phdthesis.pdf)
+- Karmarkar algorithm
+  - Exact for rational inputs (approximate for real data)
+  - First efficient polynomial time algorithm for LP
+  - Interior point method
+
+
+
 # Traits
+
 ## Game forms
 ### Strategic or Normal
 Static
@@ -46,17 +63,31 @@ Should there be a representation of a Strategic game from a `Array<[Utility; N]>
 ### Extensive
 
 ## Solutions
-### Equilibriums
-Enum
-- Nash
-- Correlated
-- Evolutionary
-- Policy
+### Equilibria
+
+A number of desirable methods is given in [[GZ89]](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.588.7844&rep=rep1&type=pdf), including
+
+- max_payoff
+- uniqueness
+- is_subset_of
+- contains_the_subset
+- support_at_least
+- support_at_most
+
 ### Strategies
-Enum
-- Pure
-- Mixed
-### Nash
+- is_pure
+- is_mixed
+- sample
+- support
+## Playable
+It should create a yew app to play the game :) 
+
+# Equilibria
+
+## Pure Nash
+
+## (Mixed) Nash
+
 ``` rust
 trait Nash<Utility>
 const N: usize; // num_players
@@ -76,18 +107,62 @@ fn has_equilibrium(&self) -> maybe_bool {
 }
 ```
 
-## Playable
-It should create a yew app to play the game :) 
+[Chapter 14, Section 7, Handbook of Game Theory, Vol. 4 (2015)]
+
+## Correlated
+
+## Evolutionary
+
+## Policy
+
+## Algorithms
+
+- [Homotopy methods to compute equilibria in game theory](https://link.springer.com/article/10.1007/s00199-009-0441-5)
+- Lemke-Howson algorithm
+  - [Paper](https://web.stanford.edu/~saberi/lecture4.pdf)
+  - [Video](https://www.youtube.com/watch?v=-OnHWm_Wycw)
+  - its worst running time is exponential in the number of pure strategies of the players (Savani and von Stengel 2004).  
+- [Solving systems of polynomial equations](https://math.berkeley.edu/~bernd/cbms.pdf) (See Chapter 6)
+  - [PHCpack: a general-purpose solver for polynomial systems by homotopy continuation](http://homepages.math.uic.edu/~jan/)
 
 
 # Games
-## Bimatrix
+## Bimatrix (nonzero-sum two player games)
 
 - Implement
   - one_solution()
-    - Lemke-Howson algorithm
-    - [Paper](https://web.stanford.edu/~saberi/lecture4.pdf)
-    - [Video](https://www.youtube.com/watch?v=-OnHWm_Wycw)
+    - Lemke-Howson?
+
+## Graphical games
+
+References
+
+- [Graphical Models for Game Theory](https://arxiv.org/abs/1301.2281)
+- [Multi-Agent Influence Diagrams for Representing and Solving Games](http://people.csail.mit.edu/milch/papers/geb-maid.pdf)
+
+## Other tractable Nash equilibria cases
+
+See Algorithmic Game Theory, chapter 7, pages 159–18.
+
+## Stochastic game
+
+```rust
+struct StochasticGame {
+    states: [Game; N],
+    transition: Fn: (game, action_profile) -> [Probability; N],
+    current: usize,
+}
+```
+
+## Vectorial payoffs
+
+Approachable and excludable sets computation? 
+
+- An analog of the minimax theorem for vector payoffs. Blackwell (1956)
+  Presentation of matrix games with vector payoffs.
+- Approachable sets of vector payoffs in stochastic games. Milman (2006)
+  Online learning and Blackwell approachability in quitting games. Flesch et al. (2016) 
+  Partial results.
 
 # Certifying algorithms
 
@@ -139,3 +214,58 @@ It should create a yew app to play the game :)
 - Implement from the basics
 - play()
 
+# Strategies
+
+## Regret
+
+### External regret
+
+#### Cost for all actions
+
+We assume we have access to all costs of the possible actions (not only the one taken)
+
+- Exponential weights for one player
+
+  ```rust
+struct ExponentialWeights {
+      counter: usize,
+      weights: [f64; N],
+      dist: rand_distr::WeightedIndex,
+      rng: R,
+  }
+  impl ExponentialWeightsTrait {
+      fn losts(&self, time: usize) -> [f64; N] {
+          assert!(0 <= losts <= 1);
+      }
+  }
+  impl Iterator for ExponentialWeights {
+      type Item = Action
+      fn next(&mut self) -> Option<Action> {
+          let next_action = self.dist.sample(&mut self.rng);
+          self.counter += 1;
+          let losts = self.losts(self.counter);
+          for i in 0..N {
+              self.weights[i] *= (1. - self.eps).powf(losts[i]);
+          }
+          let update_weights = (0..N).filter(|i| costs[i]).map(|i| (i, self.weights[i])).collect();
+          self.dist.update_weights(update_weights)
+          	.expect("There was a problem when updating weights!");
+          Some(new_action)
+      }
+  }
+  ```
+  
+  
+  
+  - Binary costs?
+  - define $\varepsilon \in (0, 1)$ as input?
+  - Weights to update and sample **once**
+    - [rand_distr](https://docs.rs/rand_distr/0.4.0/rand_distr/index.html)::[WeightedIndex](https://docs.rs/rand_distr/0.4.0/rand_distr/struct.WeightedIndex.html) 
+    - `update_weights` 
+  - action -> mut weight
+
+#### Cost for action taken
+
+We assume we have access only to the cost of the action taken
+
+- Bandits
