@@ -18,7 +18,9 @@
 pub use matrix_game::{MatrixGame, PolyMatrixGame};
 pub use traits::Playable;
 pub use certifying::Certified;
+pub use stochastic_game::StochasticGame;
 
+mod stochastic_game;
 mod matrix_game;
 mod traits;
 mod certifying;

@@ -9,7 +9,7 @@ use std::fmt;
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
 ///
-/// Examples
+/// # Examples
 ///
 /// Rock-paper-scisors.
 /// ```
@@ -18,7 +18,6 @@ use std::fmt;
 /// let rewards = array![[0, 1, -1], [1, -1, 0], [-1, 0, 1]];
 /// MatrixGame::from(rewards);
 /// ```
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatrixGame {
     matrix: Array2<f64>,

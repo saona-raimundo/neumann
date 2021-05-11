@@ -147,12 +147,59 @@ See Algorithmic Game Theory, chapter 7, pages 159–18.
 ## Stochastic game
 
 ```rust
-struct StochasticGame {
-    states: [Game; N],
-    transition: Fn: (game, action_profile) -> [Probability; N],
-    current: usize,
+struct NonzerosumStochasticGame<const PLAYERS: usize, const STATES: usize> {
+    transition: Fn: (action_profile) -> [[f64; STATES]; STATES], // Transition matrix
+    reward: Fn: (action_profile) -> [[f64; PLAYERS]; STATES],
+    current_state: usize,
 }
 ```
+
+## (Zerosum) Stochastic Game
+
+```rust
+enum Objective {
+    Discounted(f64),
+    // Total(usize),
+    // Average(usize),
+}
+/// Follows [Shapley53]
+struct StochasticGame<R, const STATES: usize> {
+    actions_one: [usize; STATES], // Actions available per state
+    actions_two: [usize; STATES], // Actions available per state
+    transition: HashMap<([usize; STATES], [usize; STATES]), [[f64; STATES]; STATES]>, // Transition matrix
+    reward: HashMap<([usize; STATES], [usize; STATES]), [R; STATES]>, // Rewards
+    current_state: usize,
+    objective: Objective,
+}
+impl<R, const STATES: usize> ZerosumStochasticGame<R, STATES> {
+    pub new(
+        actions_one: [usize; STATES],
+        actions_two: [usize; STATES],
+        transition: Fn: ([usize; STATES], [usize; STATES]) -> [[f64; STATES]; STATES], // Transition matrix
+        reward: Fn: ([usize; STATES], [usize; STATES]) -> [R; STATES],
+        initial_state: usize,
+        objective: Objective,
+    ) -> Self {}
+    pub fn rewards(action_profile: ([usize; STATES], [usize; STATES])) -> Result<[R; STATES]> {}
+    pub fn transition_matrix(action_profile: ([usize; STATES], [usize; STATES])) -> Result<[[f64; STATES]; STATES]> {}
+    pub fn action_profiles(&self) -> Vec<([usize; STATES], [usize; STATES])>
+    // pub fn fix_stationary_strategy(&self, stationary_strategy: [Vec<f64>; STATES]) -> MarkovDecissionProcess {}
+}
+impl StochasticGame {
+    pub fn aux_matrix_game(state: usize, z: f64) -> MatrixGame {}
+    fn null_determinant(action_profile: ([usize; STATES], [usize; STATES])) -> f64 {
+        // Construct ID - (1 - \lambda) Q
+        // Compute determinant
+    }
+    fn state_determinant(state: usize, action_profile: ([usize; STATES], [usize; STATES])) -> f64 {
+        // Construct ID - (1 - \lambda) Q
+        // Replace the state-column
+        // Compute determinant
+    }    
+}
+```
+
+
 
 ## Vectorial payoffs
 
@@ -227,7 +274,7 @@ We assume we have access to all costs of the possible actions (not only the one 
 - Exponential weights for one player
 
   ```rust
-struct ExponentialWeights {
+  struct ExponentialWeights {
       counter: usize,
       weights: [f64; N],
       dist: rand_distr::WeightedIndex,
