@@ -156,6 +156,12 @@ struct NonzerosumStochasticGame<const PLAYERS: usize, const STATES: usize> {
 
 ## (Zerosum) Stochastic Game
 
+IMPLEMENTING on branch stochastic_game
+
+- Documentation
+  - Examples
+- Tests
+
 ```rust
 enum Objective {
     Discounted(f64),

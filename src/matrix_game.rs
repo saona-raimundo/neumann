@@ -1,6 +1,6 @@
-pub use polynomial::PolyMatrixGame;
+// pub use polynomial::PolyMatrixGame;
 
-mod polynomial;
+// mod polynomial;
 
 // use crate::traits::Game;
 use ndarray::{Array1, Array2, Axis};
