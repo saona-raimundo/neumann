@@ -78,9 +78,9 @@ impl MatrixGame {
     /// assert!(!matrix_game.is_completely_mixed());
     /// ```
     ///
-    /// [^1]: Kaplansky, I. (1945). 
-    ///       [*A Contribution to Von Neumann's Theory of Games*](https://www.jstor.org/stable/1969164). 
-    ///       Annals of Mathematics, 46(3), second series, 474-479. 
+    /// [^1]: Kaplansky, I. (1945).
+    ///       [*A Contribution to Von Neumann's Theory of Games*](https://www.jstor.org/stable/1969164).
+    ///       Annals of Mathematics, 46(3), second series, 474-479.
     ///       doi:10.2307/1969164
     pub fn is_completely_mixed(&self) -> bool {
         if !self.is_square() {
@@ -164,9 +164,9 @@ impl MatrixGame {
     /// ```
     ///
     /// [is_completely_mixed]: struct.MatrixGame.html#method.is_completely_mixed
-    /// [^1]: Kaplansky, I. (1945). 
-    ///       [*A Contribution to Von Neumann's Theory of Games*](https://www.jstor.org/stable/1969164). 
-    ///       Annals of Mathematics, 46(3), second series, 474-479. 
+    /// [^1]: Kaplansky, I. (1945).
+    ///       [*A Contribution to Von Neumann's Theory of Games*](https://www.jstor.org/stable/1969164).
+    ///       Annals of Mathematics, 46(3), second series, 474-479.
     ///       doi:10.2307/1969164
     pub fn kernel_completely_mixed(&self) -> (Vec<usize>, Vec<usize>, MatrixGame) {
         // Setting up kernel

@@ -14,7 +14,7 @@ pub enum Objective {
     Average(usize),
 }
 
-/// Iterator over all (pure stationary) action profiles. 
+/// Iterator over all (pure stationary) action profiles.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ActionProfiles<const STATES: usize> {
     actions_one: [usize; STATES],
@@ -25,13 +25,17 @@ pub struct ActionProfiles<const STATES: usize> {
 impl<const STATES: usize> ActionProfiles<STATES> {
     /// Creates a new `ActionProfiles` for the specified number of actions
     ///  in each state for both players.
-    pub fn new(actions_one: [usize; STATES], actions_two: [usize; STATES],) -> Self {
+    pub fn new(actions_one: [usize; STATES], actions_two: [usize; STATES]) -> Self {
         let next = if actions_one.iter().all(|&i| i > 0) && actions_two.iter().all(|&i| i > 0) {
             Some(([1; STATES], [1; STATES]))
         } else {
             None
         };
-        ActionProfiles{actions_one, actions_two, next}
+        ActionProfiles {
+            actions_one,
+            actions_two,
+            next,
+        }
     }
 }
 
@@ -43,18 +47,30 @@ impl<const STATES: usize> Iterator for ActionProfiles<STATES> {
             // Player two
             for j in 1..=STATES {
                 if self.next.unwrap().1[STATES - j] == self.actions_two[STATES - j] {
-                    self.next = self.next.map(|mut v| {v.1[STATES - j] = 1; v});
+                    self.next = self.next.map(|mut v| {
+                        v.1[STATES - j] = 1;
+                        v
+                    });
                 } else {
-                    self.next = self.next.map(|mut v| {v.1[STATES - j] += 1; v});
+                    self.next = self.next.map(|mut v| {
+                        v.1[STATES - j] += 1;
+                        v
+                    });
                     return next;
                 }
             }
             // Player one
             for i in 1..=STATES {
                 if self.next.unwrap().0[STATES - i] == self.actions_one[STATES - i] {
-                    self.next = self.next.map(|mut v| {v.0[STATES - i] = 1; v});
+                    self.next = self.next.map(|mut v| {
+                        v.0[STATES - i] = 1;
+                        v
+                    });
                 } else {
-                    self.next = self.next.map(|mut v| {v.0[STATES - i] += 1; v});
+                    self.next = self.next.map(|mut v| {
+                        v.0[STATES - i] += 1;
+                        v
+                    });
                     return next;
                 }
             }
@@ -64,7 +80,6 @@ impl<const STATES: usize> Iterator for ActionProfiles<STATES> {
     }
 }
 
-
 /// Follows [[Shapley53]].
 ///
 /// [Shapley53]: https://doi.org/10.1073/pnas.39.10.1095
@@ -73,7 +88,7 @@ pub struct StochasticGame<const STATES: usize> {
     actions_one: [usize; STATES], // Actions available per state
     actions_two: [usize; STATES], // Actions available per state
     transition: HashMap<([usize; STATES], [usize; STATES]), [[f64; STATES]; STATES]>, // Transition matrix
-    reward: HashMap<([usize; STATES], [usize; STATES]), [f64; STATES]>, // Rewards
+    reward: HashMap<([usize; STATES], [usize; STATES]), [f64; STATES]>,               // Rewards
     current_state: usize,
     objective: Objective,
 }
@@ -105,12 +120,34 @@ impl<const STATES: usize> StochasticGame<STATES> {
         }
     }
     /// Returns the rewards at each state, for the given action profile.
-    pub fn rewards(&self, action_profile: ([usize; STATES], [usize; STATES])) -> anyhow::Result<&[f64; STATES]> {
-        self.reward.get(&action_profile).ok_or(anyhow::anyhow!("Invalid action profile"))
+    pub fn rewards(
+        &self,
+        action_profile: ([usize; STATES], [usize; STATES]),
+    ) -> anyhow::Result<&[f64; STATES]> {
+        self.reward
+            .get(&action_profile)
+            .ok_or(anyhow::anyhow!("Invalid action profile"))
+    }
+    /// Returns the rewards at the given state, for the given local actions.
+    pub fn reward_at_state(
+        &self,
+        state: usize,
+        local_actions: (usize, usize),
+    ) -> anyhow::Result<f64> {
+        todo!("")
+        // self.reward
+        //     .get(&action_profile)
+        //     .ok_or(anyhow::anyhow!("Invalid action profile"))
+        //     .map(|v| v[state])
     }
     /// Returns the transition between states, for the given action profile.
-    pub fn transition_matrix(&self, action_profile: ([usize; STATES], [usize; STATES])) -> anyhow::Result<&[[f64; STATES]; STATES]> {
-        self.transition.get(&action_profile).ok_or(anyhow::anyhow!("Invalid action profile"))
+    pub fn transition_matrix(
+        &self,
+        action_profile: ([usize; STATES], [usize; STATES]),
+    ) -> anyhow::Result<&[[f64; STATES]; STATES]> {
+        self.transition
+            .get(&action_profile)
+            .ok_or(anyhow::anyhow!("Invalid action profile"))
     }
     /// Returns an iterator over all action profiles.
     pub fn action_profiles(&self) -> ActionProfiles<STATES> {
@@ -118,19 +155,22 @@ impl<const STATES: usize> StochasticGame<STATES> {
     }
     /// Returns `true` if the action profile is allowed in the game.
     pub fn has_action_profile(&self, action_profile: ([usize; STATES], [usize; STATES])) -> bool {
-        self.reward.keys().any(|&i| i==action_profile)
+        self.reward.keys().any(|&i| i == action_profile)
     }
     // pub fn fix_stationary_strategy(&self, stationary_strategy: [Vec<f64>; STATES]) -> MarkovDecissionProcess {}
 }
 
-impl<const STATES: usize> StochasticGame<STATES> 
+/// Numerical implementation
+impl<const STATES: usize> StochasticGame<STATES>
 where
-    nalgebra::Const<STATES>: nalgebra::DimMin<nalgebra::Const<STATES>, Output=nalgebra::Const<STATES>>,
+    nalgebra::Const<STATES>:
+        nalgebra::DimMin<nalgebra::Const<STATES>, Output = nalgebra::Const<STATES>>,
 {
     pub fn approx_value(&self, state: usize, error: f64) -> f64 {
         assert!(error > 0.);
         use itertools::Itertools;
-        let (mut lower_bound, mut upper_bound): (f64, f64) = self.action_profiles()
+        let (mut lower_bound, mut upper_bound): (f64, f64) = self
+            .action_profiles()
             .map(|x| self.rewards(x).unwrap())
             .flatten()
             .cloned()
@@ -164,7 +204,11 @@ where
         }
         Ok(MatrixGame::from(aux_matrix))
     }
-    fn null_determinant(&self, action_profile: ([usize; STATES], [usize; STATES])) -> anyhow::Result<f64> {
+
+    fn null_determinant(
+        &self,
+        action_profile: ([usize; STATES], [usize; STATES]),
+    ) -> anyhow::Result<f64> {
         let lambda;
         if let Objective::Discounted(param) = self.objective {
             lambda = param;
@@ -184,13 +228,17 @@ where
         Ok(new_matrix.determinant())
     }
     /// Determinant of `ID - (1 - \lambda) Q` change the state column for the reward vector
-    fn state_determinant(&self, state: usize, action_profile: ([usize; STATES], [usize; STATES])) -> anyhow::Result<f64> {
+    fn state_determinant(
+        &self,
+        state: usize,
+        action_profile: ([usize; STATES], [usize; STATES]),
+    ) -> anyhow::Result<f64> {
         assert!(state < STATES);
         let lambda;
         if let Objective::Discounted(param) = self.objective {
             lambda = param;
         } else {
-            return Err(anyhow::anyhow!("The objective must be discounted"))
+            return Err(anyhow::anyhow!("The objective must be discounted"));
         }
         // Construct ID - (1 - \lambda) Q
         let transition_matrix = self.transition_matrix(action_profile)?;
@@ -206,8 +254,139 @@ where
             }
         }
         // Compute determinant
-        Ok(new_matrix.determinant())    
-    }    
+        Ok(new_matrix.determinant())
+    }
+}
+
+/// Symbolic computations
+impl<const STATES: usize> StochasticGame<STATES>
+where
+    nalgebra::Const<STATES>:
+        nalgebra::DimMin<nalgebra::Const<STATES>, Output = nalgebra::Const<STATES>>,
+{
+    pub fn sym_aux_matrix_game<'a>(&self, state: usize, py: pyo3::Python<'a>) -> anyhow::Result<Vec<Vec<String>>> {
+        let dimension_one = self.actions_one.iter().product();
+        let dimension_two: usize = self.actions_two.iter().product();
+        let mut aux_matrix = vec![vec![String::from(""); dimension_two]; dimension_one];
+        for (counter, action_profile) in self.action_profiles().enumerate() {
+            // Define the corresponding index
+            let i = counter / dimension_two;
+            let j = counter % dimension_two;
+            // Compute entries
+            let d0 = self.sym_null_determinant(action_profile, py)?;
+            let dk = self.sym_state_determinant(state, action_profile, py)?;
+            // update entry
+            aux_matrix[j][i] = format!("{} - z ({})", d0, dk);
+        }
+        Ok(aux_matrix)
+    }
+
+    fn sym_null_determinant<'a>(
+        &self,
+        action_profile: ([usize; STATES], [usize; STATES]),
+        py: pyo3::Python<'a>,
+    ) -> anyhow::Result<&'a pyo3::PyAny> {
+        // Matrix
+        let lambda_matrix = self.sym_lambda_matrix(action_profile, py)?;
+        // Computation
+        let sympy = pyo3::prelude::PyModule::import(py, "sympy")?;
+        let result = sympy.call1("det", (lambda_matrix,))?;
+        Ok(result)
+    }
+    /// Determinant of `ID - (1 - \lambda) Q` changing the state column for the reward vector
+    fn sym_state_determinant<'a>(
+        &self,
+        state: usize,
+        action_profile: ([usize; STATES], [usize; STATES]),
+        py: pyo3::Python<'a>,
+    ) -> anyhow::Result<&'a pyo3::PyAny> {
+        assert!(state < STATES);
+        // Matrix
+        // Transition matrix
+        let changed_lambda_matrix = {
+            let transition_array = self.transition_matrix(action_profile)?;
+            let rewards = self.rewards(action_profile)?;
+            let locals = pyo3::types::PyDict::new(py);
+            let code = format!(
+                r#"
+import sympy
+lam = sympy.Symbol("lam")
+lambda_matrix = sympy.eye({}) - (1 - lam) * sympy.Matrix({:?})
+rewards = sympy.Matrix({:?})
+lambda_matrix.col_del({})
+ret = lambda_matrix.col_insert({}, rewards)
+            "#,
+                STATES,
+                transition_array,
+                rewards,
+                state,
+                state,
+            );
+            py.run(&code, None, Some(locals))?;
+            locals
+                .get_item("ret")
+                .expect("Could not transform into sympy Matrix")
+        };
+        
+        // Computation
+        let sympy = pyo3::prelude::PyModule::import(py, "sympy")?;
+        let result = sympy.call1("det", (changed_lambda_matrix,))?;
+        Ok(result)
+    }
+
+    /// Symbolic matrix `Id - (1 - \lambda) Q`
+    fn sym_lambda_matrix<'a>(
+        &self,
+        action_profile: ([usize; STATES], [usize; STATES]),
+        py: pyo3::Python<'a>,
+    ) -> anyhow::Result<&'a pyo3::PyAny> {
+        let sympy = pyo3::prelude::PyModule::import(py, "sympy")?;
+        // Transition matrix
+        let q_matrix = {
+            let transition_array = self.transition_matrix(action_profile)?;
+            let locals = pyo3::types::PyDict::new(py);
+            let code = format!(
+                r#"
+import sympy
+ret = sympy.Matrix({:?})
+            "#,
+                transition_array
+            );
+            py.run(&code, None, Some(locals))?;
+            locals
+                .get_item("ret")
+                .expect("Could not transform into sympy Matrix")
+        };
+        // Lambda
+        let lam_symbol = sympy.call1("Symbol", ("lam",))?;
+        // Identity
+        let identity = {
+            let locals = pyo3::types::PyDict::new(py);
+            let code = format!(
+                r#"
+import sympy
+ret = sympy.eye({:?})
+            "#,
+                STATES
+            );
+            py.run(&code, None, Some(locals))?;
+            locals
+                .get_item("ret")
+                .expect("Could not transform into sympy Matrix")
+        };
+        // Dictionary
+        let sympy_dict = pyo3::types::IntoPyDict::into_py_dict(
+            vec![
+                ("q_matrix", q_matrix),
+                ("lam", lam_symbol),
+                ("identity", identity),
+            ],
+            py,
+        );
+        // Computation
+        let result = py.eval("identity - (1 - lam) * q_matrix", None, Some(sympy_dict))?;
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -223,29 +402,25 @@ mod tests {
         let actions_one = [1, 1];
         let actions_two = [1, 1];
         let mut transition = HashMap::new();
-        transition.insert(
-            ([1, 1], [1, 1]),
-            [
-                [1., 0.], 
-                [0., 1.]
-            ]
-        );
+        transition.insert(([1, 1], [1, 1]), [[1., 0.], [0., 1.]]);
         let mut reward = HashMap::new();
-        reward.insert(
-            ([1, 1], [1, 1]),
-            [0., 1.]
-        );
+        reward.insert(([1, 1], [1, 1]), [0., 1.]);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
-        StochasticGame::new(
-            actions_one, 
-            actions_two, 
-            |x, y| transition[&(x, y)], 
-            |x, y| reward[&(x, y)], 
-            initial_state, 
-            objective
+        let stoc_game = StochasticGame::new(
+            actions_one,
+            actions_two,
+            |x, y| transition[&(x, y)],
+            |x, y| reward[&(x, y)],
+            initial_state,
+            objective,
         );
+
+        assert_eq!(stoc_game.rewards(([1, 1], [1, 1])).unwrap(), &[0., 1.]);
+        assert_eq!(stoc_game.transition_matrix(([1, 1], [1, 1])).unwrap(), &[[1., 0.], [0., 1.]]);
+        assert!(stoc_game.has_action_profile(([1, 1], [1, 1])));
+        
     }
 
     #[test]
@@ -254,27 +429,19 @@ mod tests {
         let actions_one = [1];
         let actions_two = [1];
         let mut transition = HashMap::new();
-        transition.insert(
-            ([1], [1]),
-            [
-                [1.]
-            ]
-        );
+        transition.insert(([1], [1]), [[1.]]);
         let mut reward = HashMap::new();
-        reward.insert(
-            ([1], [1]),
-            [0.5]
-        );
+        reward.insert(([1], [1]), [0.5]);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
         let stoc_game = StochasticGame::new(
-            actions_one, 
-            actions_two, 
-            |x, y| transition[&(x, y)], 
-            |x, y| reward[&(x, y)], 
-            initial_state, 
-            objective
+            actions_one,
+            actions_two,
+            |x, y| transition[&(x, y)],
+            |x, y| reward[&(x, y)],
+            initial_state,
+            objective,
         );
 
         let approx_value = stoc_game.approx_value(0, 1e-7);
@@ -288,42 +455,76 @@ mod tests {
         let actions_one = [1, 1];
         let actions_two = [1, 1];
         let mut transition = HashMap::new();
-        transition.insert(
-            ([1, 1], [1, 1]),
-            [
-                [1., 0.], 
-                [0., 1.]
-            ]
-        );
+        transition.insert(([1, 1], [1, 1]), [[1., 0.], [0., 1.]]);
         let mut reward = HashMap::new();
-        reward.insert(
-            ([1, 1], [1, 1]),
-            [0., 1.]
-        );
+        reward.insert(([1, 1], [1, 1]), [0., 1.]);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
         let stoc_game = StochasticGame::new(
-            actions_one, 
-            actions_two, 
-            |x, y| transition[&(x, y)], 
-            |x, y| reward[&(x, y)], 
-            initial_state, 
-            objective
+            actions_one,
+            actions_two,
+            |x, y| transition[&(x, y)],
+            |x, y| reward[&(x, y)],
+            initial_state,
+            objective,
         );
 
         assert_abs_diff_eq!(stoc_game.approx_value(0, 1e-7), 0., epsilon = 1e-7);
         assert_abs_diff_eq!(stoc_game.approx_value(1, 1e-7), 1., epsilon = 1e-7);
     }
 
-    // #[test_case( array![[0, 1], [1, 0]],  2, 2 ; "2x2")]
-    // #[test_case( array![[0, 1, -1], [-1, 0, 1]],  2, 3 ; "2x3")]
-    // fn checking_dimensions<T>(matrix: Array2<T>, actions_row: usize, actions_column: usize)
-    // where
-    //     T: Into<f64> + Clone,
-    // {
-    //     let matrix_game = MatrixGame::from(matrix);
-    //     assert_eq!(actions_row, matrix_game.actions_row());
-    //     assert_eq!(actions_column, matrix_game.actions_column());
-    // }
+    #[test]
+    fn symbolic_computations() {
+        // Parameters
+        let actions_one = [1, 1];
+        let actions_two = [1, 1];
+        let transition_matrix = [[1., 0.], [0., 1.]];
+        let mut transition = HashMap::new();
+        transition.insert(([1, 1], [1, 1]), transition_matrix);
+        let mut reward = HashMap::new();
+        reward.insert(([1, 1], [1, 1]), [1., 1.]);
+        let initial_state = 0;
+        let objective = Objective::Discounted(0.5);
+        // Construction
+        let stoc_game = StochasticGame::new(
+            actions_one,
+            actions_two,
+            |x, y| transition[&(x, y)],
+            |x, y| reward[&(x, y)],
+            initial_state,
+            objective,
+        );
+
+        let gil = pyo3::Python::acquire_gil();
+        let py = gil.python();
+
+        // lambda matrix
+        let result = stoc_game
+            .sym_lambda_matrix((actions_one, actions_two), py)
+            .expect("Could not compute the symbolic matrix Id - (1 - lambda) Q");
+        let expected = "Matrix([\n[1.0*lam,       0],\n[      0, 1.0*lam]])";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // Determinant
+        let result = stoc_game
+            .sym_null_determinant((actions_one, actions_two), py)
+            .expect("Could not compute the determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+    
+        // State determinant
+        let result = stoc_game
+            .sym_state_determinant(0, (actions_one, actions_two), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "1.0*lam";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // Auxiliary matrix
+        let result = stoc_game
+            .sym_aux_matrix_game(0, py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "[[\"1.0*lam**2 - z (1.0*lam)\"]]";
+        assert_eq!(&format!("{:?}", result), expected);
+    }
 }
