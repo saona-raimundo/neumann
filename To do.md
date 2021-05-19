@@ -1,10 +1,11 @@
 Matrix game from nalgebra matrices through constant generics
 
-Construction of stochastic games is over parametrized, one only needs a transition probability per state and action choices, not a transition matrix!
+Stochastic games
 
-​	transition: impl Fn(state: usize, action_one: usize, action_two: usize) -> [f64; STATES],
-
-​	reward: impl Fn(state: usize, action_one: usize, action_two: usize) -> f64
+- New from 
+  - HashMap
+  - Fn
+- Mejorar error messages
 
 # Computing tools
 

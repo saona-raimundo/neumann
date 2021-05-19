@@ -1,5 +1,8 @@
 use crate::MatrixGame;
+use action_profiles::ActionProfiles;
 use std::collections::HashMap;
+
+mod action_profiles;
 
 /// Objective of the players
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -14,72 +17,6 @@ pub enum Objective {
     Average(usize),
 }
 
-/// Iterator over all (pure stationary) action profiles.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ActionProfiles<const STATES: usize> {
-    actions_one: [usize; STATES],
-    actions_two: [usize; STATES],
-    next: Option<([usize; STATES], [usize; STATES])>,
-}
-
-impl<const STATES: usize> ActionProfiles<STATES> {
-    /// Creates a new `ActionProfiles` for the specified number of actions
-    ///  in each state for both players.
-    pub fn new(actions_one: [usize; STATES], actions_two: [usize; STATES]) -> Self {
-        let next = if actions_one.iter().all(|&i| i > 0) && actions_two.iter().all(|&i| i > 0) {
-            Some(([1; STATES], [1; STATES]))
-        } else {
-            None
-        };
-        ActionProfiles {
-            actions_one,
-            actions_two,
-            next,
-        }
-    }
-}
-
-impl<const STATES: usize> Iterator for ActionProfiles<STATES> {
-    type Item = ([usize; STATES], [usize; STATES]);
-    fn next(&mut self) -> Option<Self::Item> {
-        let next = self.next.clone();
-        if self.next.is_some() {
-            // Player two
-            for j in 1..=STATES {
-                if self.next.unwrap().1[STATES - j] == self.actions_two[STATES - j] {
-                    self.next = self.next.map(|mut v| {
-                        v.1[STATES - j] = 1;
-                        v
-                    });
-                } else {
-                    self.next = self.next.map(|mut v| {
-                        v.1[STATES - j] += 1;
-                        v
-                    });
-                    return next;
-                }
-            }
-            // Player one
-            for i in 1..=STATES {
-                if self.next.unwrap().0[STATES - i] == self.actions_one[STATES - i] {
-                    self.next = self.next.map(|mut v| {
-                        v.0[STATES - i] = 1;
-                        v
-                    });
-                } else {
-                    self.next = self.next.map(|mut v| {
-                        v.0[STATES - i] += 1;
-                        v
-                    });
-                    return next;
-                }
-            }
-        }
-        self.next = None;
-        return next;
-    }
-}
-
 /// Follows [[Shapley53]].
 ///
 /// [Shapley53]: https://doi.org/10.1073/pnas.39.10.1095
@@ -87,28 +24,103 @@ impl<const STATES: usize> Iterator for ActionProfiles<STATES> {
 pub struct StochasticGame<const STATES: usize> {
     actions_one: [usize; STATES], // Actions available per state
     actions_two: [usize; STATES], // Actions available per state
-    transition: HashMap<([usize; STATES], [usize; STATES]), [[f64; STATES]; STATES]>, // Transition matrix
-    reward: HashMap<([usize; STATES], [usize; STATES]), [f64; STATES]>,               // Rewards
+    transition: HashMap<(usize, (usize, usize)), [f64; STATES]>, // Local transition rule
+    reward: HashMap<(usize, (usize, usize)), f64>, // Local rewards
     current_state: usize,
     objective: Objective,
 }
 
 impl<const STATES: usize> StochasticGame<STATES> {
     /// Creates a new `StochasticGame`.
+    ///
+    /// # Errors
+    ///
+    /// If the keys in `local_transition` or `local_reward` are incomplete.
     pub fn new(
         actions_one: [usize; STATES],
         actions_two: [usize; STATES],
-        transition: impl Fn([usize; STATES], [usize; STATES]) -> [[f64; STATES]; STATES], // Transition matrix
-        reward: impl Fn([usize; STATES], [usize; STATES]) -> [f64; STATES],
+        local_transition: HashMap<(usize, (usize, usize)), [f64; STATES]>, // Transition matrix
+        local_reward: HashMap<(usize, (usize, usize)), f64>,
+        initial_state: usize,
+        objective: Objective,
+    ) -> anyhow::Result<Self> {
+        let transition_keys = {
+            let mut vec = local_transition
+                .keys()
+                .collect::<Vec<&(usize, (usize, usize))>>();
+            vec.sort();
+            vec
+        };
+        let reward_keys = {
+            let mut vec = local_reward
+                .keys()
+                .collect::<Vec<&(usize, (usize, usize))>>();
+            vec.sort();
+            vec
+        };
+        anyhow::ensure!(
+            transition_keys == reward_keys,
+            "local transition and rewards must be defined with the same keys."
+        );
+
+        let mut transition_keys_iter = transition_keys.into_iter();
+        for state in 0..STATES {
+            for action_one in 0..actions_one[state] {
+                for action_two in 0..actions_two[state] {
+                    anyhow::ensure!(
+                        transition_keys_iter.next() == Some(&(state, (action_one, action_two))),
+                        "there is a misiing key for local transition and rewards: {:?}.",
+                        (state, (action_one, action_two))
+                    );
+                }
+            }
+        }
+
+        Ok(StochasticGame {
+            actions_one,
+            actions_two,
+            transition: local_transition,
+            reward: local_reward,
+            current_state: initial_state,
+            objective,
+        })
+    }
+
+    /// Creates a new `StochasticGame`.
+    ///
+    /// # Remarks
+    ///
+    /// Functions are called once per input convination.
+    pub fn from_fn(
+        actions_one: [usize; STATES],
+        actions_two: [usize; STATES],
+        mut local_transition: impl FnMut(usize, (usize, usize)) -> [f64; STATES], // Transition matrix
+        mut local_reward: impl FnMut(usize, (usize, usize)) -> f64,
         initial_state: usize,
         objective: Objective,
     ) -> Self {
-        let transition = ActionProfiles::new(actions_one, actions_two)
-            .map(|x| (x, transition(x.0, x.1)))
-            .collect();
-        let reward = ActionProfiles::new(actions_one, actions_two)
-            .map(|x| (x.clone(), reward(x.0, x.1)))
-            .collect();
+        let mut transition = HashMap::new();
+        for state in 0..STATES {
+            for action_one in 0..actions_one[state] {
+                for action_two in 0..actions_two[state] {
+                    transition.insert(
+                        (state, (action_one, action_two)),
+                        local_transition(state, (action_one, action_two)),
+                    );
+                }
+            }
+        }
+        let mut reward = HashMap::new();
+        for state in 0..STATES {
+            for action_one in 0..actions_one[state] {
+                for action_two in 0..actions_two[state] {
+                    reward.insert(
+                        (state, (action_one, action_two)),
+                        local_reward(state, (action_one, action_two)),
+                    );
+                }
+            }
+        }
 
         StochasticGame {
             actions_one,
@@ -123,41 +135,65 @@ impl<const STATES: usize> StochasticGame<STATES> {
     pub fn rewards(
         &self,
         action_profile: ([usize; STATES], [usize; STATES]),
-    ) -> anyhow::Result<&[f64; STATES]> {
-        self.reward
-            .get(&action_profile)
-            .ok_or(anyhow::anyhow!("Invalid action profile"))
+    ) -> anyhow::Result<[&f64; STATES]> {
+        let mut result = [&0.; STATES];
+        for state in 0..STATES {
+            result[state] =
+                self.reward_at_state(state, (action_profile.0[state], action_profile.1[state]))?
+        }
+        Ok(result)
     }
     /// Returns the rewards at the given state, for the given local actions.
     pub fn reward_at_state(
         &self,
         state: usize,
         local_actions: (usize, usize),
-    ) -> anyhow::Result<f64> {
-        todo!("")
-        // self.reward
-        //     .get(&action_profile)
-        //     .ok_or(anyhow::anyhow!("Invalid action profile"))
-        //     .map(|v| v[state])
+    ) -> anyhow::Result<&f64> {
+        self.reward
+            .get(&(state, local_actions))
+            .ok_or(anyhow::anyhow!("Invalid local actions"))
     }
     /// Returns the transition between states, for the given action profile.
     pub fn transition_matrix(
         &self,
         action_profile: ([usize; STATES], [usize; STATES]),
-    ) -> anyhow::Result<&[[f64; STATES]; STATES]> {
+    ) -> anyhow::Result<[&[f64; STATES]; STATES]> {
+        let mut result = [&[0.; STATES]; STATES];
+        for state in 0..STATES {
+            result[state] =
+                self.transition_at_state(state, (action_profile.0[state], action_profile.1[state]))?
+        }
+        Ok(result)
+    }
+    /// Returns the transition between states, for the given action profile.
+    pub fn transition_at_state(
+        &self,
+        state: usize,
+        local_actions: (usize, usize),
+    ) -> anyhow::Result<&[f64; STATES]> {
         self.transition
-            .get(&action_profile)
-            .ok_or(anyhow::anyhow!("Invalid action profile"))
+            .get(&(state, local_actions))
+            .ok_or(anyhow::anyhow!("Invalid local actions"))
     }
     /// Returns an iterator over all action profiles.
     pub fn action_profiles(&self) -> ActionProfiles<STATES> {
         ActionProfiles::new(self.actions_one, self.actions_two)
     }
     /// Returns `true` if the action profile is allowed in the game.
+    ///
+    /// # Remarks
+    ///
+    /// Recall that actions are indexed starting from zero.
     pub fn has_action_profile(&self, action_profile: ([usize; STATES], [usize; STATES])) -> bool {
-        self.reward.keys().any(|&i| i == action_profile)
+        (0..STATES).all(|state| {
+            (action_profile.0[state] < self.actions_one[state])
+                && (action_profile.1[state] < self.actions_two[state])
+        })
     }
+    // PROJECT
     // pub fn fix_stationary_strategy(&self, stationary_strategy: [Vec<f64>; STATES]) -> MarkovDecissionProcess {}
+    // REQUIRES
+    // struct MarkovDecissionProcess
 }
 
 /// Numerical implementation
@@ -171,7 +207,7 @@ where
         use itertools::Itertools;
         let (mut lower_bound, mut upper_bound): (f64, f64) = self
             .action_profiles()
-            .map(|x| self.rewards(x).unwrap())
+            .map(|x| self.rewards(x).unwrap().iter().cloned().collect::<Vec<_>>())
             .flatten()
             .cloned()
             .minmax()
@@ -247,7 +283,7 @@ where
         for k1 in 0..STATES {
             for k2 in 0..STATES {
                 if k2 == state {
-                    new_matrix[(k1, k2)] = rewards[k1];
+                    new_matrix[(k1, k2)] = *rewards[k1];
                 } else {
                     new_matrix[(k1, k2)] += (lambda - 1.) * transition_matrix[k1][k2];
                 }
@@ -264,7 +300,11 @@ where
     nalgebra::Const<STATES>:
         nalgebra::DimMin<nalgebra::Const<STATES>, Output = nalgebra::Const<STATES>>,
 {
-    pub fn sym_aux_matrix_game<'a>(&self, state: usize, py: pyo3::Python<'a>) -> anyhow::Result<Vec<Vec<String>>> {
+    pub fn sym_aux_matrix_game<'a>(
+        &self,
+        state: usize,
+        py: pyo3::Python<'a>,
+    ) -> anyhow::Result<Vec<Vec<String>>> {
         let dimension_one = self.actions_one.iter().product();
         let dimension_two: usize = self.actions_two.iter().product();
         let mut aux_matrix = vec![vec![String::from(""); dimension_two]; dimension_one];
@@ -276,7 +316,7 @@ where
             let d0 = self.sym_null_determinant(action_profile, py)?;
             let dk = self.sym_state_determinant(state, action_profile, py)?;
             // update entry
-            aux_matrix[j][i] = format!("{} - z ({})", d0, dk);
+            aux_matrix[i][j] = format!("{} - z ({})", dk, d0);
         }
         Ok(aux_matrix)
     }
@@ -312,22 +352,18 @@ where
 import sympy
 lam = sympy.Symbol("lam")
 lambda_matrix = sympy.eye({}) - (1 - lam) * sympy.Matrix({:?})
-rewards = sympy.Matrix({:?})
+rewards = lam * sympy.Matrix({:?})
 lambda_matrix.col_del({})
 ret = lambda_matrix.col_insert({}, rewards)
             "#,
-                STATES,
-                transition_array,
-                rewards,
-                state,
-                state,
+                STATES, transition_array, rewards, state, state,
             );
             py.run(&code, None, Some(locals))?;
             locals
                 .get_item("ret")
                 .expect("Could not transform into sympy Matrix")
         };
-        
+
         // Computation
         let sympy = pyo3::prelude::PyModule::import(py, "sympy")?;
         let result = sympy.call1("det", (changed_lambda_matrix,))?;
@@ -402,25 +438,31 @@ mod tests {
         let actions_one = [1, 1];
         let actions_two = [1, 1];
         let mut transition = HashMap::new();
-        transition.insert(([1, 1], [1, 1]), [[1., 0.], [0., 1.]]);
+        transition.insert((0, (0, 0)), [1., 0.]);
+        transition.insert((1, (0, 0)), [0., 1.]);
         let mut reward = HashMap::new();
-        reward.insert(([1, 1], [1, 1]), [0., 1.]);
+        reward.insert((0, (0, 0)), 0.);
+        reward.insert((1, (0, 0)), 1.);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
         let stoc_game = StochasticGame::new(
             actions_one,
             actions_two,
-            |x, y| transition[&(x, y)],
-            |x, y| reward[&(x, y)],
+            transition,
+            reward,
             initial_state,
             objective,
-        );
+        )
+        .unwrap();
 
-        assert_eq!(stoc_game.rewards(([1, 1], [1, 1])).unwrap(), &[0., 1.]);
-        assert_eq!(stoc_game.transition_matrix(([1, 1], [1, 1])).unwrap(), &[[1., 0.], [0., 1.]]);
-        assert!(stoc_game.has_action_profile(([1, 1], [1, 1])));
-        
+        assert_eq!(stoc_game.rewards(([0, 0], [0, 0])).unwrap(), [&0., &1.]);
+        assert_eq!(
+            stoc_game.transition_matrix(([0, 0], [0, 0])).unwrap(),
+            [&[1., 0.], &[0., 1.]]
+        );
+        assert!(stoc_game.has_action_profile(([0, 0], [0, 0])));
+        assert!(!stoc_game.has_action_profile(([0, 0], [0, 1])));
     }
 
     #[test]
@@ -429,20 +471,21 @@ mod tests {
         let actions_one = [1];
         let actions_two = [1];
         let mut transition = HashMap::new();
-        transition.insert(([1], [1]), [[1.]]);
+        transition.insert((0, (0, 0)), [1.]);
         let mut reward = HashMap::new();
-        reward.insert(([1], [1]), [0.5]);
+        reward.insert((0, (0, 0)), 0.5);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
         let stoc_game = StochasticGame::new(
             actions_one,
             actions_two,
-            |x, y| transition[&(x, y)],
-            |x, y| reward[&(x, y)],
+            transition,
+            reward,
             initial_state,
             objective,
-        );
+        )
+        .unwrap();
 
         let approx_value = stoc_game.approx_value(0, 1e-7);
         let expected = 0.5;
@@ -455,20 +498,23 @@ mod tests {
         let actions_one = [1, 1];
         let actions_two = [1, 1];
         let mut transition = HashMap::new();
-        transition.insert(([1, 1], [1, 1]), [[1., 0.], [0., 1.]]);
+        transition.insert((0, (0, 0)), [1., 0.]);
+        transition.insert((1, (0, 0)), [0., 1.]);
         let mut reward = HashMap::new();
-        reward.insert(([1, 1], [1, 1]), [0., 1.]);
+        reward.insert((0, (0, 0)), 0.);
+        reward.insert((1, (0, 0)), 1.);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
         let stoc_game = StochasticGame::new(
             actions_one,
             actions_two,
-            |x, y| transition[&(x, y)],
-            |x, y| reward[&(x, y)],
+            transition,
+            reward,
             initial_state,
             objective,
-        );
+        )
+        .unwrap();
 
         assert_abs_diff_eq!(stoc_game.approx_value(0, 1e-7), 0., epsilon = 1e-7);
         assert_abs_diff_eq!(stoc_game.approx_value(1, 1e-7), 1., epsilon = 1e-7);
@@ -479,52 +525,328 @@ mod tests {
         // Parameters
         let actions_one = [1, 1];
         let actions_two = [1, 1];
-        let transition_matrix = [[1., 0.], [0., 1.]];
         let mut transition = HashMap::new();
-        transition.insert(([1, 1], [1, 1]), transition_matrix);
+        transition.insert((0, (0, 0)), [1., 0.]);
+        transition.insert((1, (0, 0)), [0., 1.]);
         let mut reward = HashMap::new();
-        reward.insert(([1, 1], [1, 1]), [1., 1.]);
+        reward.insert((0, (0, 0)), 0.5);
+        reward.insert((1, (0, 0)), 1.);
         let initial_state = 0;
         let objective = Objective::Discounted(0.5);
         // Construction
         let stoc_game = StochasticGame::new(
             actions_one,
             actions_two,
-            |x, y| transition[&(x, y)],
-            |x, y| reward[&(x, y)],
+            transition,
+            reward,
             initial_state,
             objective,
-        );
+        )
+        .unwrap();
 
         let gil = pyo3::Python::acquire_gil();
         let py = gil.python();
 
         // lambda matrix
         let result = stoc_game
-            .sym_lambda_matrix((actions_one, actions_two), py)
+            .sym_lambda_matrix(([0, 0], [0, 0]), py)
             .expect("Could not compute the symbolic matrix Id - (1 - lambda) Q");
         let expected = "Matrix([\n[1.0*lam,       0],\n[      0, 1.0*lam]])";
         assert_eq!(&format!("{:?}", result), expected);
 
         // Determinant
         let result = stoc_game
-            .sym_null_determinant((actions_one, actions_two), py)
+            .sym_null_determinant(([0, 0], [0, 0]), py)
             .expect("Could not compute the determinant of the symbolic matrix!");
         let expected = "1.0*lam**2";
         assert_eq!(&format!("{:?}", result), expected);
-    
+
         // State determinant
         let result = stoc_game
-            .sym_state_determinant(0, (actions_one, actions_two), py)
+            .sym_state_determinant(0, ([0, 0], [0, 0]), py)
             .expect("Could not compute the state determinant of the symbolic matrix!");
-        let expected = "1.0*lam";
+        let expected = "0.5*lam**2";
         assert_eq!(&format!("{:?}", result), expected);
 
         // Auxiliary matrix
         let result = stoc_game
             .sym_aux_matrix_game(0, py)
             .expect("Could not compute the state determinant of the symbolic matrix!");
-        let expected = "[[\"1.0*lam**2 - z (1.0*lam)\"]]";
+        let expected = "[[\"0.5*lam**2 - z (1.0*lam**2)\"]]";
+        assert_eq!(&format!("{:?}", result), expected);
+    }
+
+    #[test]
+    fn symbolic_computations_2() {
+        // Parameters
+        let actions_one = [1, 2, 2, 1];
+        let actions_two = [1, 1, 1, 1];
+        let transition = vec![
+            ((0, (0, 0)), [1., 0., 0., 0.]),
+            ((1, (0, 0)), [0., 0., 0., 1.]),
+            ((1, (1, 0)), [0., 0., 1., 0.]),
+            ((2, (0, 0)), [0., 0., 0., 1.]),
+            ((2, (1, 0)), [0.5, 0.5, 0., 0.]),
+            ((3, (0, 0)), [0., 0., 0., 1.]),
+        ]
+        .into_iter()
+        .collect();
+        let reward = vec![
+            ((0, (0, 0)), 0.),
+            ((1, (0, 0)), 0.),
+            ((1, (1, 0)), 0.),
+            ((2, (0, 0)), 0.),
+            ((2, (1, 0)), 0.),
+            ((3, (0, 0)), 1.),
+        ]
+        .into_iter()
+        .collect();
+        let initial_state = 0;
+        let objective = Objective::Discounted(0.5);
+        // Construction
+        let stoc_game = StochasticGame::new(
+            actions_one,
+            actions_two,
+            transition,
+            reward,
+            initial_state,
+            objective,
+        )
+        .unwrap();
+
+        // Basic checks
+        assert_eq!(
+            stoc_game
+                .transition_matrix(([0, 0, 0, 0], [0, 0, 0, 0]))
+                .unwrap(),
+            [
+                &[1., 0., 0., 0.],
+                &[0., 0., 0., 1.],
+                &[0., 0., 0., 1.],
+                &[0., 0., 0., 1.],
+            ]
+        );
+        assert_eq!(
+            stoc_game
+                .transition_matrix(([0, 0, 1, 0], [0, 0, 0, 0]))
+                .unwrap(),
+            [
+                &[1., 0., 0., 0.],
+                &[0., 0., 0., 1.],
+                &[0.5, 0.5, 0., 0.],
+                &[0., 0., 0., 1.],
+            ]
+        );
+        assert_eq!(
+            stoc_game
+                .transition_matrix(([0, 1, 0, 0], [0, 0, 0, 0]))
+                .unwrap(),
+            [
+                &[1., 0., 0., 0.],
+                &[0., 0., 1., 0.],
+                &[0., 0., 0., 1.],
+                &[0., 0., 0., 1.],
+            ]
+        );
+        assert_eq!(
+            stoc_game
+                .transition_matrix(([0, 1, 1, 0], [0, 0, 0, 0]))
+                .unwrap(),
+            [
+                &[1., 0., 0., 0.],
+                &[0., 0., 1., 0.],
+                &[0.5, 0.5, 0., 0.],
+                &[0., 0., 0., 1.],
+            ]
+        );
+
+        // Symbolic
+        let gil = pyo3::Python::acquire_gil();
+        let py = gil.python();
+
+        // lambda matrix
+        let result = stoc_game
+            .sym_lambda_matrix(([0, 0, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the symbolic matrix Id - (1 - lambda) Q");
+        let expected = "Matrix([
+[1.0*lam, 0, 0,             0],
+[      0, 1, 0, 1.0*lam - 1.0],
+[      0, 0, 1, 1.0*lam - 1.0],
+[      0, 0, 0,       1.0*lam]])";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        let result = stoc_game
+            .sym_lambda_matrix(([0, 0, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the symbolic matrix Id - (1 - lambda) Q");
+        let expected = "Matrix([
+[      1.0*lam,             0, 0,             0],
+[            0,             1, 0, 1.0*lam - 1.0],
+[0.5*lam - 0.5, 0.5*lam - 0.5, 1,             0],
+[            0,             0, 0,       1.0*lam]])";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        let result = stoc_game
+            .sym_lambda_matrix(([0, 1, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the symbolic matrix Id - (1 - lambda) Q");
+        let expected = "Matrix([
+[1.0*lam, 0,             0,             0],
+[      0, 1, 1.0*lam - 1.0,             0],
+[      0, 0,             1, 1.0*lam - 1.0],
+[      0, 0,             0,       1.0*lam]])";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        let result = stoc_game
+            .sym_lambda_matrix(([0, 1, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the symbolic matrix Id - (1 - lambda) Q");
+        let expected = "Matrix([
+[      1.0*lam,             0,             0,       0],
+[            0,             1, 1.0*lam - 1.0,       0],
+[0.5*lam - 0.5, 0.5*lam - 0.5,             1,       0],
+[            0,             0,             0, 1.0*lam]])";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // Determinant
+        let result = stoc_game
+            .sym_null_determinant(([0, 0, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        let result = stoc_game
+            .sym_null_determinant(([0, 0, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        let result = stoc_game
+            .sym_null_determinant(([0, 1, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        let result = stoc_game
+            .sym_null_determinant(([0, 1, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the determinant of the symbolic matrix!");
+        let expected = "-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // State determinant
+        // State 0
+        let state = 0;
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // State 1
+        let state = 1;
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "-1.0*lam**3 + 1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "-1.0*lam**3 + 1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "1.0*lam**4 - 2.0*lam**3 + 1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // State 2
+        let state = 2;
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "-1.0*lam**3 + 1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0.5*lam**4 - 1.0*lam**3 + 0.5*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "-1.0*lam**3 + 1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "0";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // State 3
+        let state = 3;
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 0, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 0, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "1.0*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+        let result = stoc_game
+            .sym_state_determinant(state, ([0, 1, 1, 0], [0, 0, 0, 0]), py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2";
+        assert_eq!(&format!("{:?}", result), expected);
+
+        // Auxiliary matrix
+        let state = 0;
+        let result = stoc_game
+            .sym_aux_matrix_game(state, py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "[[\"0 - z (1.0*lam**2)\"], [\"0 - z (1.0*lam**2)\"], [\"0 - z (1.0*lam**2)\"], [\"0 - z (-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2)\"]]";
+        assert_eq!(&format!("{:?}", result), expected);
+        let state = 1;
+        let result = stoc_game
+            .sym_aux_matrix_game(state, py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "[[\"-1.0*lam**3 + 1.0*lam**2 - z (1.0*lam**2)\"], [\"-1.0*lam**3 + 1.0*lam**2 - z (1.0*lam**2)\"], [\"1.0*lam**4 - 2.0*lam**3 + 1.0*lam**2 - z (1.0*lam**2)\"], [\"0 - z (-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2)\"]]";
+        assert_eq!(&format!("{:?}", result), expected);
+        let state = 2;
+        let result = stoc_game
+            .sym_aux_matrix_game(state, py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "[[\"-1.0*lam**3 + 1.0*lam**2 - z (1.0*lam**2)\"], [\"0.5*lam**4 - 1.0*lam**3 + 0.5*lam**2 - z (1.0*lam**2)\"], [\"-1.0*lam**3 + 1.0*lam**2 - z (1.0*lam**2)\"], [\"0 - z (-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2)\"]]";
+        assert_eq!(&format!("{:?}", result), expected);
+        let state = 3;
+        let result = stoc_game
+            .sym_aux_matrix_game(state, py)
+            .expect("Could not compute the state determinant of the symbolic matrix!");
+        let expected = "[[\"1.0*lam**2 - z (1.0*lam**2)\"], [\"1.0*lam**2 - z (1.0*lam**2)\"], [\"1.0*lam**2 - z (1.0*lam**2)\"], [\"-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2 - z (-0.5*lam**4 + 1.0*lam**3 + 0.5*lam**2)\"]]";
         assert_eq!(&format!("{:?}", result), expected);
     }
 }
