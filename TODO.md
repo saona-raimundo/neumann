@@ -1,3 +1,17 @@
+
+
+- [ ] MatrixGame
+  - [ ] solve
+  - [ ] reduce_best
+  - [ ] completely_mixed
+  - [ ] From const generics
+  - [ ] play
+    - [ ] fasteval -> other
+- [ ] PolynomialMatrixGame
+- [ ] StochasticGame
+
+
+
 Matrix game from nalgebra matrices through constant generics
 
 Stochastic games
@@ -105,6 +119,8 @@ fn has_equilibrium(&self) -> maybe_bool {
 
 ## Correlated
 
+## Coarse Correlated
+
 ## Algorithms
 
 - [Homotopy methods to compute equilibria in game theory](https://link.springer.com/article/10.1007/s00199-009-0441-5)
@@ -117,6 +133,10 @@ fn has_equilibrium(&self) -> maybe_bool {
 
 
 # Games
+## PolyMatrix
+
+https://people.csail.mit.edu/costis/zerosum_final3.pdf
+
 ## Bimatrix (nonzero-sum two player games)
 
 - Implement

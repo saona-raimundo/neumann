@@ -30,6 +30,7 @@ pub trait Equilibrium {}
 pub trait Solvable<E: Equilibrium> {
     type PlayerStrategy;
     type Solution;
+    type SolutionIter: Iterator<Item = Self::Solution>;
     /// Checks whether the game has a solution.
     fn is_solvable(&self) -> bool;
     /// Returns a possible solution.
@@ -52,5 +53,5 @@ pub trait Solvable<E: Equilibrium> {
     ///
     /// Usually, there are infinitely many solutions.
     /// The representation of this infinite set should be documented by the implementation.
-    fn all_solutions(&self) -> dyn Iterator<Item = Self::Solution>;
+    fn all_solutions(&self) -> Self::SolutionIter;
 }

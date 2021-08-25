@@ -19,6 +19,8 @@
 pub use games::matrix::MatrixGame; // , poly_matrix::PolyMatrixGame};
 
 // mod certifying;
+
+/// Equilibrium concepts.
 pub mod equilibria;
 /// All games supported.
 pub mod games;
