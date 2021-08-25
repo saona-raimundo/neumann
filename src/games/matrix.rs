@@ -1,8 +1,4 @@
-// pub use polynomial::PolyMatrixGame;
-
-// mod polynomial;
-
-// use crate::traits::Game;
+use crate::traits::CliPlayable;
 use ndarray::{Array1, Array2, Axis};
 use std::collections::HashSet;
 use std::fmt;
@@ -451,7 +447,7 @@ impl MatrixGame {
     }
 }
 
-impl crate::Playable for MatrixGame {
+impl CliPlayable for MatrixGame {
     /// Starts a REPL to play the game.
     ///
     /// The user is asked to input a strategy, one probability at a time.
@@ -492,6 +488,9 @@ impl crate::Playable for MatrixGame {
             }
         }
     }
+    fn play_solo(&self) {
+        todo!()
+    }
 }
 
 impl<T> From<Array2<T>> for MatrixGame
@@ -502,6 +501,21 @@ where
         MatrixGame {
             matrix: matrix.mapv(|x: T| -> f64 { x.into() }),
         }
+    }
+}
+
+impl<T, const N: usize, const M: usize> From<[[T; M]; N]> for MatrixGame
+where
+    T: Into<f64> + Clone,
+{
+    fn from(source: [[T; M]; N]) -> Self {
+        let mut matrix = Array2::from_elem((N, M), 0.);
+        for row in 0..N {
+            for col in 0..M {
+                matrix[[row, col]] = source[row][col].clone().into();
+            }
+        }
+        MatrixGame { matrix }
     }
 }
 
@@ -520,7 +534,7 @@ impl fmt::Display for MatrixGame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_ulps_eq;
+    use approx::{abs_diff_eq, assert_ulps_eq};
     use ndarray::array;
     use test_case::test_case;
 
@@ -528,6 +542,14 @@ mod tests {
     fn construction() {
         let matrix = array![[0, 1], [1, 0],];
         MatrixGame::from(matrix);
+    }
+
+    #[test]
+    fn from_nested_array() {
+        let matrix = array![[0, 1], [1, 0],];
+        let expected = MatrixGame::from(matrix);
+        let result = MatrixGame::from([[0, 1], [1, 0]]);
+        assert_eq!(expected, result);
     }
 
     #[test_case( array![[0, 1], [1, 0]],  2, 2 ; "2x2")]
@@ -586,6 +608,67 @@ mod tests {
                 optimal_column_strategy[j],
                 expected_solution.1[j],
                 max_ulps = 1
+            );
+        }
+        assert_ulps_eq!(value, expected_solution.2, max_ulps = 1);
+    }
+
+    #[test_case(
+        [
+            [1, 1, -2],
+            [1, -2, 1],
+            [-2, 1, 1]
+        ],
+        (vec![1./3., 1./3., 1./3.], vec![1./3., 1./3., 1./3.], 0.0);
+        "symmetric game 3x3"
+    )]
+    #[test_case( [[1, 1, 1, -3], [1, 1, -3, 1], [1, -3, 1, 1], [-3, 1, 1, 1]],  (vec![1./4., 1./4., 1./4., 1./4.], vec![1./4., 1./4., 1./4., 1./4.], 0.0) ; "symmetric game 4x4")]
+    #[test_case(
+        [
+            [0.000000000000000011, 0.000000000000000011, 0.000000000000000011, -0.000000000000000550],
+            [0.000000000000000011, 0.000000000000000011, -0.000000000000000550, 0.000000000000000011],
+            [0.000000000000000011, -0.000000000000000550, 0.000000000000000011, 0.000000000000000011],
+            [-0.000000000000000550, 0.000000000000000011, 0.000000000000000011, 0.000000000000000011]
+        ],
+        (vec![1./4., 1./4., 1./4., 1./4.], vec![1./4., 1./4., 1./4., 1./4.], -10.0); // it should be -129.25e-21, but it is too small to compute. It is smaller than f64::EPSILON!
+        "symmetric game with small entries. NEEDS SOLVING FEASIBILITY DIFFERENTLY!"
+    )]
+    #[test_case(
+        [
+            [11, 11, 11, -550],
+            [11, 11, -550, 11],
+            [11, -550, 11, 11],
+            [-550, 11, 11, 11]
+        ],
+        (vec![1./4., 1./4., 1./4., 1./4.], vec![1./4., 1./4., 1./4., 1./4.], -129.25);
+        "symmetric game with bigger entries"
+    )]
+    fn solving_from_nested_array<T, const N: usize, const M: usize>(
+        matrix: [[T; M]; N],
+        expected_solution: (Vec<f64>, Vec<f64>, f64),
+    ) where
+        T: Into<f64> + Clone,
+    {
+        let matrix_game = MatrixGame::from(matrix);
+        let (optimal_row_strategy, optimal_column_strategy, value) = matrix_game.solve();
+
+        println!("{}", matrix_game);
+        println!("optimal row strategy:\n{:?}", optimal_row_strategy);
+        println!("optimal column strategy:\n{:?}", optimal_column_strategy);
+        println!("value:\n{}", value);
+
+        for i in 0..expected_solution.0.len() {
+            abs_diff_eq!(
+                optimal_row_strategy[i],
+                expected_solution.0[i],
+                epsilon = 1e-6
+            );
+        }
+        for j in 0..expected_solution.1.len() {
+            abs_diff_eq!(
+                optimal_column_strategy[j],
+                expected_solution.1[j],
+                epsilon = 1e-6
             );
         }
         assert_ulps_eq!(value, expected_solution.2, max_ulps = 1);

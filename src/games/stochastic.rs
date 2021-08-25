@@ -59,19 +59,72 @@ impl<const STATES: usize> StochasticGame<STATES> {
             vec
         };
         anyhow::ensure!(
-            transition_keys == reward_keys,
-            "local transition and rewards must be defined with the same keys."
+            transition_keys.len() == reward_keys.len(),
+            "local transition and rewards must have the same number of keys. \
+            There are {} transition keys, \
+            while there are {} reward keys.",
+            transition_keys.len(),
+            reward_keys.len(),
         );
+        for i in 0..transition_keys.len() {
+            anyhow::ensure!(
+                transition_keys[i] == reward_keys[i],
+                "local transition and rewards must be defined with the same keys. \
+                Check transition key {:?}, or reward key {:?}",
+                transition_keys[i],
+                reward_keys[i],
+            );
+        }
 
         let mut transition_keys_iter = transition_keys.into_iter();
         for state in 0..STATES {
             for action_one in 0..actions_one[state] {
                 for action_two in 0..actions_two[state] {
-                    anyhow::ensure!(
-                        transition_keys_iter.next() == Some(&(state, (action_one, action_two))),
-                        "there is a misiing key for local transition and rewards: {:?}.",
-                        (state, (action_one, action_two))
-                    );
+                    let next = transition_keys_iter.next();
+                    if let Some((s, (a1, a2))) = next {
+                        if a1 > &(actions_one[state] - 1) {
+                            anyhow::bail!(
+                                "Incongruent actions for player one. \
+                                There are only {} actions for player one at state {}, \
+                                but the key {:?} was used.",
+                                actions_one[state],
+                                state,
+                                (s, (a1, a2)),
+                            );
+                        } else if a2 > &(actions_two[state] - 1) {
+                            anyhow::bail!(
+                                "Incongruent actions for player two. \
+                                There are only {} actions for player two at state {}, \
+                                but the key {:?} was used.",
+                                actions_two[state],
+                                state,
+                                (s, (a1, a2)),
+                            );
+                        } else if s > &STATES {
+                            anyhow::bail!(
+                                "Incongruent number of states. \
+                                There are only {} states in the game, \
+                                but the key {:?} was used.",
+                                STATES,
+                                (s, (a1, a2)),
+                            );
+                        } else {
+                            anyhow::ensure!(
+                                (s, (a1, a2)) == (&state, (&action_one, &action_two)),
+                                "number of actions and keys do not match. \
+                                They key {:?} was expected, \
+                                while the key {:?} was given.",
+                                (state, (action_one, action_two)),
+                                (s, (a1, a2))
+                            );
+                        }
+                    } else {
+                        anyhow::bail!(
+                            "Insufficient keys.\
+                            There key {:?} is a missing.",
+                            (state, (action_one, action_two))
+                        );
+                    }
                 }
             }
         }
@@ -202,7 +255,7 @@ where
     nalgebra::Const<STATES>:
         nalgebra::DimMin<nalgebra::Const<STATES>, Output = nalgebra::Const<STATES>>,
 {
-    pub fn approx_value(&self, state: usize, error: f64) -> f64 {
+    pub fn approx_value(&self, state: usize, error: f64) -> anyhow::Result<f64> {
         assert!(error > 0.);
         use itertools::Itertools;
         let (mut lower_bound, mut upper_bound): (f64, f64) = self
@@ -215,6 +268,12 @@ where
             .unwrap();
         while (upper_bound - lower_bound).abs() > error {
             let z = (lower_bound + upper_bound) / 2.;
+            anyhow::ensure!(
+                upper_bound > z && z > lower_bound,
+                "Machine precision reached!\nThe best approximation is {}",
+                z
+            );
+            // println!("{:?}", z);
             let value_z = self.aux_matrix_game(state, z).unwrap().value();
             if value_z > 0. {
                 lower_bound = z;
@@ -222,7 +281,7 @@ where
                 upper_bound = z;
             }
         }
-        (lower_bound + upper_bound) / 2.
+        Ok((lower_bound + upper_bound) / 2.)
     }
     pub fn aux_matrix_game(&self, state: usize, z: f64) -> anyhow::Result<MatrixGame> {
         let dimension_one = self.actions_one.iter().product();
@@ -254,7 +313,6 @@ where
         // Construct ID - (1 - \lambda) Q
         let transition_matrix = self.transition_matrix(action_profile).unwrap();
         let mut new_matrix = nalgebra::SMatrix::<f64, STATES, STATES>::identity();
-        // ndarray::Array2::<f64>::zeros((STATES, STATES));
         for k1 in 0..STATES {
             for k2 in 0..STATES {
                 new_matrix[(k1, k2)] += (lambda - 1.) * transition_matrix[k1][k2];
@@ -283,7 +341,7 @@ where
         for k1 in 0..STATES {
             for k2 in 0..STATES {
                 if k2 == state {
-                    new_matrix[(k1, k2)] = *rewards[k1];
+                    new_matrix[(k1, k2)] = lambda * *rewards[k1];
                 } else {
                     new_matrix[(k1, k2)] += (lambda - 1.) * transition_matrix[k1][k2];
                 }
@@ -487,7 +545,7 @@ mod tests {
         )
         .unwrap();
 
-        let approx_value = stoc_game.approx_value(0, 1e-7);
+        let approx_value = stoc_game.approx_value(0, 1e-7).unwrap();
         let expected = 0.5;
         assert_eq!(approx_value, expected);
     }
@@ -516,8 +574,8 @@ mod tests {
         )
         .unwrap();
 
-        assert_abs_diff_eq!(stoc_game.approx_value(0, 1e-7), 0., epsilon = 1e-7);
-        assert_abs_diff_eq!(stoc_game.approx_value(1, 1e-7), 1., epsilon = 1e-7);
+        assert_abs_diff_eq!(stoc_game.approx_value(0, 1e-7).unwrap(), 0., epsilon = 1e-7);
+        assert_abs_diff_eq!(stoc_game.approx_value(1, 1e-7).unwrap(), 1., epsilon = 1e-7);
     }
 
     #[test]

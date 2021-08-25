@@ -2,74 +2,61 @@ Matrix game from nalgebra matrices through constant generics
 
 Stochastic games
 
-- New from 
-  - HashMap
-  - Fn
 - Mejorar error messages
+  - new()
+    - Indicate when there are more actions than specified
+  - approx_value()
+    - Error is over machine precision
+  - Error / Error Reporter
+
+
+
+# Documentation
+
+- Equilibria
 
 # Computing tools
 
 ## LP solver
+
+### Matrix Games
 
 Change to certifying LP solvers!
 
 - [A review of computation of mathematically rigorous bounds on optima of linear programs](https://link.springer.com/article/10.1007/s10898-016-0489-2)
 - [Certifying feasibility and objective value of linear programs](https://www.sciencedirect.com/science/article/pii/S0167637712000272)
   - [Complete thesis](https://domino.mpi-inf.mpg.de/imprs/imprspubl.nsf/0/B1A302821896EA31C1257E4C002468F6/$file/dumitriu_phdthesis.pdf)
-- Karmarkar algorithm
+
+- [Karmarkar algorithm](https://en.wikipedia.org/wiki/Karmarkar%27s_algorithm)
   - Exact for rational inputs (approximate for real data)
   - First efficient polynomial time algorithm for LP
   - Interior point method
+  - Implementation
+    - Look at 
+      - https://en.wikipedia.org/wiki/Karmarkar%27s_algorithm#The_algorithm
+      - https://docs.rs/karmarkar/0.2.0/karmarkar/karmarkar/fn.karmarkar.html
+    - Stopping criteria
+      - Number of loops
+      - smallest improvement
+    - ndarray for rational data
+      - Check exact inverse
 
+This is needed for stochastic games algorithms!!
 
+### Stochastic Games
+
+Study only infeasibility!!
+
+- Primal-Dual Interior-Point Methods, Chapter 9
+- Warm start from previous solution to speed up computations
+- Certify infeasibility by [Farkas lemma](https://en.wikipedia.org/wiki/Farkas%27_lemma)
 
 # Traits
 
 ## Game forms
-### Strategic or Normal
-Static
-``` rust
-/// [Strategic] or [Normal] form games 
-///
-/// [Strategic]: https://en.wikipedia.org/w/index.php?title=Strategic_form&redirect=no
-/// [Normal]: https://en.wikipedia.org/wiki/Normal-form_game
-trait Strategic<Utility: Num> // We want to allow different implementation for different numerical types. 
-// Would one need to annotate which utility type is using if there were many implamantations??
-const N: usize; // num_players
-type Action = usize;
-type ActionSet = Vec<Action>;
-
-// Another option is to simply ask for the payoff matrix!
-fn payoff_matrix(&self) -> ArrayBase<[Utility; N]>;
-
-fn strategies(&self) -> [ActionSet; N];
-fn payoffs(&self, strategy_profile: [Action; N]) -> Utility;
-
-fn action_set(&self, player: usize) -> ActionSet {
-  self.strategies[player]
-}
-fn num_players(&self) -> usize {
-  N
-}
-fn min_social_payoff(&self) -> Utility {
-  todo!()
-}
-fn player_payoffs(&self) -> Iterator<Item = Utility> {
-  todo!()
-}
-fn social_payoffs(&self) -> Iterator<Item = Utility> {
-  todo!()
-}
-```
-Mutable
-``` rust
-trait StrategicMut<Utility>: Strategic<Utility>
-fn remove_action(&mut self, player: usize, action: usize) -> Self;
-```
-
-Should there be a representation of a Strategic game from a `Array<[Utility; N]>`?
-
 ### Extensive
+
+??
 
 ## Solutions
 ### Equilibria
@@ -88,8 +75,6 @@ A number of desirable methods is given in [[GZ89]](https://citeseerx.ist.psu.edu
 - is_mixed
 - sample
 - support
-## Playable
-It should create a yew app to play the game :) 
 
 # Equilibria
 
@@ -119,10 +104,6 @@ fn has_equilibrium(&self) -> maybe_bool {
 [Chapter 14, Section 7, Handbook of Game Theory, Vol. 4 (2015)]
 
 ## Correlated
-
-## Evolutionary
-
-## Policy
 
 ## Algorithms
 

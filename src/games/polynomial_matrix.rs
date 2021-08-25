@@ -30,7 +30,7 @@ use std::fmt;
 /// PolyMatrixGame::from(poly_matrix);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct PolyMatrixGame {
+pub struct PolynomailMatrixGame {
     poly_matrix: Vec<Array2<i32>>,
 }
 
@@ -204,7 +204,6 @@ impl PolyMatrixGame {
         false
     }
 
-
     /// Shape of the matrix game.
     ///
     /// First the number of row actions, then the number of column actions.
@@ -275,41 +274,44 @@ impl crate::value_positivity::ValuePositivity<Vec<f64>, Vec<f64>, ()> for PolyMa
     ///
     /// That is, there exists a positive threshold for which the value of the perturbed matrix game is at least as much as
     /// the value of the matrix game corresponding to evaluating the polynomial matrix game at zero.
-    /// 
+    ///
     /// # Output
     ///
     /// Boolean.
     ///
     /// # Certificate
     ///
-    /// If the answer is true, the certificate is a strategy for the row player that ensures a non-negative reward 
+    /// If the answer is true, the certificate is a strategy for the row player that ensures a non-negative reward
     /// for the perturbation given by `epsilon_kernel_constant`.
-    /// 
-    /// If the answer is false, the certificate is a strategy for the colmun player that ensures a negative reward 
+    ///
+    /// If the answer is false, the certificate is a strategy for the colmun player that ensures a negative reward
     /// for the column player, for the perturbation given by `epsilon_kernel_constant`.
-    /// 
+    ///
     /// Recall that the value function does not change sign from between this perturbation and zero.
     fn is_value_positive(&self) -> Certified<bool, Vec<f64>> {
-        let (row_strategy, column_strategy, value) = self.eval(self.epsilon_kernel_constant()).solve();
+        let (row_strategy, column_strategy, value) =
+            self.eval(self.epsilon_kernel_constant()).solve();
         match value >= self.eval(0.).value() {
-             true => Certified::from((true, row_strategy)),
-             false => Certified::from((false, column_strategy)),
-         }
-
-        
+            true => Certified::from((true, row_strategy)),
+            false => Certified::from((false, column_strategy)),
+        }
     }
 
     /// Checks the rewards given by the strategy.
     fn is_value_positive_checker(&self, certified_output: Certified<bool, Vec<f64>>) -> bool {
         match certified_output.output {
             true => {
-                let rewards = ndarray::Array1::from(certified_output.certificate).dot(self.eval(self.epsilon_kernel_constant()).matrix());
+                let rewards = ndarray::Array1::from(certified_output.certificate)
+                    .dot(self.eval(self.epsilon_kernel_constant()).matrix());
                 rewards.iter().all(|&v| v >= 0.0)
-            },
+            }
             false => {
-                let rewards = self.eval(self.epsilon_kernel_constant()).matrix().dot(&ndarray::Array1::from(certified_output.certificate));
+                let rewards = self
+                    .eval(self.epsilon_kernel_constant())
+                    .matrix()
+                    .dot(&ndarray::Array1::from(certified_output.certificate));
                 rewards.iter().all(|&v| v < 0.0)
-            },
+            }
         }
     }
 
@@ -338,11 +340,12 @@ impl crate::value_positivity::ValuePositivity<Vec<f64>, Vec<f64>, ()> for PolyMa
         // } else {
         //     false
         // }
-
     }
 
-    /// 
-    fn is_uniform_value_positive_checker(&self, _: Certified<bool, Vec<f64>>) -> bool { todo!() }
+    ///
+    fn is_uniform_value_positive_checker(&self, _: Certified<bool, Vec<f64>>) -> bool {
+        todo!()
+    }
 
     /// Returns the value function close to zero.
     ///
@@ -373,7 +376,7 @@ impl crate::value_positivity::ValuePositivity<Vec<f64>, Vec<f64>, ()> for PolyMa
     /// ```
     ///
     /// [epsilon_kernel_constant]: struct.PolyMatrixGame.html#method.epsilon_kernel_constant
-    fn functional_form(&self) -> Certified<num_rational::Ratio<polynomials::Polynomial<i32>>, ()> { 
+    fn functional_form(&self) -> Certified<num_rational::Ratio<polynomials::Polynomial<i32>>, ()> {
         todo!()
 
         // let matrix_game = self.eval(self.epsilon_kernel_constant());
@@ -395,8 +398,13 @@ impl crate::value_positivity::ValuePositivity<Vec<f64>, Vec<f64>, ()> for PolyMa
         // Ratio::new_raw(numer, denom)
     }
 
-    /// 
-    fn functional_form_checker(&self, _: Certified<num_rational::Ratio<polynomials::Polynomial<i32>>, ()>) -> bool { todo!() }
+    ///
+    fn functional_form_checker(
+        &self,
+        _: Certified<num_rational::Ratio<polynomials::Polynomial<i32>>, ()>,
+    ) -> bool {
+        todo!()
+    }
 }
 
 impl<T> From<Vec<Array2<T>>> for PolyMatrixGame
@@ -488,9 +496,9 @@ impl Into<Array2<Polynomial<i32>>> for PolyMatrixGame {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::value_positivity::ValuePositivity;
     use ndarray::array;
     use test_case::test_case;
-    use crate::value_positivity::ValuePositivity;
     // use approx::assert_ulps_eq;
 
     #[test_case( vec![array![[0, 1], [1, 0]], array![[0, 1], [1, 0]]] ; "valid construction")]
@@ -506,7 +514,10 @@ mod tests {
     fn computing_value_positivity(poly_matrix: Vec<Array2<i32>>, expected_value: bool) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
         assert_eq!(poly_matrix_game.is_value_positive().output, expected_value);
-        assert_eq!(poly_matrix_game.is_value_positive_checker(poly_matrix_game.is_value_positive()), expected_value);
+        assert_eq!(
+            poly_matrix_game.is_value_positive_checker(poly_matrix_game.is_value_positive()),
+            expected_value
+        );
     }
 
     #[test_case( vec![ array![[0, 1], [1, 0]], array![[0, 1], [1, 0]] ],  true ; "uniform value-positive easy")]
@@ -520,8 +531,15 @@ mod tests {
     #[test_case( vec![ array![[1, 1], [1, 1]], array![[1, -1], [-1, 1]], array![[-2, -1], [-1, -2]] ], false ; "not uniform value-positive medium polynomial")]
     fn computing_uniform_value_positivity(poly_matrix: Vec<Array2<i32>>, expected_value: bool) {
         let poly_matrix_game = PolyMatrixGame::from(poly_matrix);
-        assert_eq!(poly_matrix_game.is_uniform_value_positive().output, expected_value);
-        assert_eq!(poly_matrix_game.is_uniform_value_positive_checker(poly_matrix_game.is_uniform_value_positive()), expected_value);
+        assert_eq!(
+            poly_matrix_game.is_uniform_value_positive().output,
+            expected_value
+        );
+        assert_eq!(
+            poly_matrix_game
+                .is_uniform_value_positive_checker(poly_matrix_game.is_uniform_value_positive()),
+            expected_value
+        );
     }
 
     #[test_case( vec![ array![[1, -1], [-1, 1]], array![[1, -3], [0, 2]] ], Ratio::new_raw(poly![0, 0, 2], poly![4, 6]) ; "quadratic")]
@@ -537,6 +555,5 @@ mod tests {
         assert_eq!(functional_form_value.numer(), expected_rational.numer());
         assert_eq!(functional_form_value.denom(), expected_rational.denom());
         assert!(poly_matrix_game.functional_form_checker(poly_matrix_game.functional_form()));
-
     }
 }

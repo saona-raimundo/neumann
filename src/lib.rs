@@ -14,24 +14,13 @@
 //! [PolyMatrixGame]: struct.PolyMatrixGame.htm
 //! [ValuePositivity]: value_positivity/trait.ValuePositivity.html
 
-// Main crate
-pub use certifying::Certified;
-pub use matrix_game::MatrixGame; // , PolyMatrixGame};
-pub use stochastic_game::StochasticGame;
-pub use traits::Playable;
+// Re-export all games
+// pub use certifying::Certified;
+pub use games::matrix::MatrixGame; // , poly_matrix::PolyMatrixGame};
 
-mod certifying;
-mod matrix_game;
-pub mod stochastic_game;
-mod traits;
-
-// Research specific
-pub mod value_positivity;
-
-// #[cfg(test)]
-// mod tests {
-//     // #[test]
-//     // fn it_works() {
-//     //     assert_eq!(2 + 2, 4);
-//     // }
-// }
+// mod certifying;
+pub mod equilibria;
+/// All games supported.
+pub mod games;
+/// Traits of this crate.
+pub mod traits;
