@@ -26,6 +26,7 @@ categories = ["algorithms", "science", "mathematics"]
 # anyhow = "1.0.40"
 nalgebra = { version = "0.29.0", features = ["serde-serialize"] }
 minilp = "0.2.2"
+ndarray = "0.15.3"
 # pyo3 = "0.13.2"
 # pythonize = "0.13.0"
 

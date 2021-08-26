@@ -4,6 +4,7 @@ use nalgebra::{
 };
 // use std::collections::HashSet;
 // use std::fmt;
+use core::fmt;
 
 // More implementations
 mod play;
@@ -16,10 +17,8 @@ mod transformations;
 ///
 /// Rock-paper-scisors.
 /// ```
-/// # use nalgebra::Matrix3;
 /// # use neumann::MatrixGame;
-/// let rewards = Matrix3::new(0, 1, -1, 1, -1, 0, -1, 0, 1);
-/// MatrixGame::from(rewards);
+/// MatrixGame::from([[0, 1, -1], [1, -1, 0], [-1, 0, 1]]);
 /// ```
 #[derive(Clone)]
 pub struct MatrixGame<T, R, C, S> {
@@ -27,10 +26,6 @@ pub struct MatrixGame<T, R, C, S> {
 }
 
 impl<T: Scalar, R: Dim, C: Dim, S: RawStorage<T, R, C>> MatrixGame<T, R, C, S> {
-    /// The shape of this matrix returned as the tuple (number of rows, number of columns).
-    pub fn shape(&self) -> (usize, usize) {
-        self.matrix.shape()
-    }
     /// Return `true` if the matrix game has no entries.
     pub fn is_empty(&self) -> bool {
         self.matrix.is_empty()
@@ -42,24 +37,35 @@ impl<T: Scalar, R: Dim, C: Dim, S: RawStorage<T, R, C>> MatrixGame<T, R, C, S> {
     ///
     /// Rock-paper-scisors is a square game.
     /// ```
-    /// # use nalgebra::Matrix3;
     /// # use neumann::MatrixGame;
-    /// let rewards = Matrix3::new(0, 1, -1, 1, -1, 0, -1, 0, 1);
-    /// let matrix_game = MatrixGame::from(rewards);
+    /// let matrix_game = MatrixGame::from([[0, 1, -1], [1, -1, 0], [-1, 0, 1]]);;
     /// assert!(matrix_game.is_square());
     /// ```
     ///
     /// A 2x3 game is not square.
     /// ```
-    /// # use nalgebra::Matrix2x3;
     /// # use neumann::MatrixGame;
-    /// let rewards = Matrix2x3::new(0, 1, -1, 0, -1, 2);
-    /// let matrix_game = MatrixGame::from(rewards);
+    /// let matrix_game = MatrixGame::from([[0, 1, -1], [0, -1, 2]]);;
     /// assert!(!matrix_game.is_square());
     /// ```
     pub fn is_square(&self) -> bool {
         let shape = self.matrix.shape();
         shape.0 == shape.1
+    }
+
+    /// The number of rows of this matrix game.
+    pub fn nrows(&self) -> usize {
+        self.matrix.nrows()
+    }
+
+    /// The number of columns of this matrix game.
+    pub fn ncols(&self) -> usize {
+        self.matrix.ncols()
+    }
+
+    /// The shape of this matrix game returned as the tuple (number of rows, number of columns).
+    pub fn shape(&self) -> (usize, usize) {
+        self.matrix.shape()
     }
 }
 
@@ -74,12 +80,10 @@ where
     ///
     /// Forgetting about the first action for the row player.
     /// ```
-    /// # use nalgebra::{Matrix3, Matrix2x3};
     /// # use neumann::MatrixGame;
-    /// let rewards = Matrix3::new(0, 1, -1, 1, -1, 0, -1, 0, 1);
-    /// let matrix_game = MatrixGame::from(rewards);
+    /// let matrix_game = MatrixGame::from([[0, 1, -1], [1, -1, 0], [-1, 0, 1]]);
     /// let sub_matrix_game = matrix_game.remove_row(0);
-    /// assert_eq!(sub_matrix_game.matrix, Matrix2x3::new(1, -1, 0, -1, 0, 1));
+    /// assert_eq!(sub_matrix_game.shape(), (2, 3));
     /// ```
     pub fn remove_row(
         self,
@@ -110,12 +114,10 @@ where
     ///
     /// Forgetting about the last action for the column player.
     /// ```
-    /// # use nalgebra::{Matrix3, Matrix3x2};
     /// # use neumann::MatrixGame;
-    /// let rewards = Matrix3::new(0, 1, -1, 1, -1, 0, -1, 0, 1);
-    /// let matrix_game = MatrixGame::from(rewards);
+    /// let matrix_game = MatrixGame::from([[0, 1, -1], [1, -1, 0], [-1, 0, 1]]);
     /// let sub_matrix_game = matrix_game.remove_column(2);
-    /// assert_eq!(sub_matrix_game.matrix, Matrix3x2::new(0, 1, 1, -1, -1, 0));
+    /// assert_eq!(sub_matrix_game.shape(), (3, 2));
     /// ```
     pub fn remove_column(
         self,
@@ -132,5 +134,17 @@ where
     > {
         let sub_matrix = self.matrix.remove_column(i);
         MatrixGame { matrix: sub_matrix }
+    }
+}
+
+impl<T, R, C, S> fmt::Display for MatrixGame<T, R, C, S>
+where
+    T: Scalar + fmt::Display,
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.matrix)
     }
 }

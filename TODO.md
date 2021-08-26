@@ -1,10 +1,8 @@
 
 
 - [ ] MatrixGame
-  - [ ] solve
   - [ ] reduce_best
   - [ ] completely_mixed
-  - [ ] From const generics
   - [ ] play
     - [ ] fasteval -> other
 - [ ] PolynomialMatrixGame
@@ -91,6 +89,8 @@ A number of desirable methods is given in [[GZ89]](https://citeseerx.ist.psu.edu
 - support
 
 # Equilibria
+
+Overview of equilibria and methods: http://article.sapub.org/10.5923.j.jgt.20200902.01.html#Sec3
 
 ## Pure Nash
 

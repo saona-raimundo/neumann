@@ -28,25 +28,10 @@ pub trait Equilibrium {}
 
 /// Games that can be solved in terms of the given equilibrium concept.
 pub trait Solvable<E: Equilibrium> {
+    type Value;
     type PlayerStrategy;
     type Solution;
     type SolutionIter: Iterator<Item = Self::Solution>;
-    /// Checks whether the game has a solution.
-    fn is_solvable(&self) -> bool;
-    /// Returns a possible solution.
-    ///
-    /// # Remarks
-    ///
-    /// If the game is solvable, this function never returns `None`.
-    fn some_solution(&self) -> Option<Self::Solution>;
-    /// Checks whether `proposal` is a solution.
-    fn is_solution(&self, proposal: Self::Solution) -> bool;
-    /// Returns a possible solution.
-    ///
-    /// # Remarks
-    ///
-    /// If the game is solvable, this function never returns `None`.
-    fn some_solution_for_player(&self, player: usize) -> Option<Self::PlayerStrategy>;
     /// Returns all possible solutions.
     ///
     /// # Remarks
@@ -54,4 +39,22 @@ pub trait Solvable<E: Equilibrium> {
     /// Usually, there are infinitely many solutions.
     /// The representation of this infinite set should be documented by the implementation.
     fn all_solutions(&self) -> Self::SolutionIter;
+    /// Checks whether the game has a solution.
+    fn is_solvable(&self) -> bool;
+    /// Checks whether `proposal` is a solution.
+    fn is_solution(&self, proposal: Self::Solution) -> bool;
+    /// Returns a possible solution.
+    ///
+    /// # Remarks
+    ///
+    /// If the game is solvable, this function never returns `None`.
+    fn some_solution(&self) -> Option<Self::Solution>;
+    /// Returns a possible solution.
+    ///
+    /// # Remarks
+    ///
+    /// If the game is solvable, this function never returns `None`.
+    fn some_solution_for_player(&self, player: usize) -> Option<Self::PlayerStrategy>;
+    /// Returns the value of the game, if it is solvable.
+    fn value(&self) -> Option<Self::Value>;
 }
