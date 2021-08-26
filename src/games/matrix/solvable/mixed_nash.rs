@@ -3,16 +3,15 @@ use minilp::{ComparisonOp, OptimizationDirection, Problem, Variable};
 use nalgebra::{
     allocator::{Allocator, Reallocator},
     constraint::{AreMultipliable, ShapeConstraint},
-    Const, DMatrix, DVector, DefaultAllocator, Dim, DimSub, Dynamic, Scalar, SimdComplexField,
-    Storage,
+    Const, DMatrix, DVector, DefaultAllocator, Dim, DimSub, Dynamic, Scalar, Storage,
 };
 
 use crate::{equilibria::MixedNash, traits::Solvable, MatrixGame};
 
 impl<T, R, C, S> Solvable<MixedNash<f64>> for MatrixGame<T, R, C, S>
 where
-    T: Scalar + Into<f64> + Clone + SimdComplexField,
-    S: Storage<T, R, C>,
+    T: Scalar + Into<f64> + Clone,
+    S: Storage<T, R, C> + Clone,
     R: Dim,
     C: Dim,
     DefaultAllocator: Allocator<T, C, R>
@@ -77,7 +76,7 @@ where
                 Some(strategy)
             }
             1 => {
-                let matrix = -self.matrix.adjoint();
+                let matrix = self.matrix.map(|v| -> f64 { -v.into() }).transpose();
                 MatrixGame { matrix }.some_solution_for_player(0)
             }
             _ => unreachable!(),
@@ -179,7 +178,7 @@ where
 
 impl<T, R, C, S> MatrixGame<T, R, C, S>
 where
-    T: Scalar + Into<f64> + Clone + SimdComplexField,
+    T: Scalar + Into<f64> + Clone,
     R: Dim + DimSub<Const<1>> + Clone,
     <R as DimSub<Const<1_usize>>>::Output: Dim,
     C: Dim + Clone,
@@ -231,7 +230,7 @@ where
 
 impl<T, R, C, S> MatrixGame<T, R, C, S>
 where
-    T: Scalar + Into<f64> + Clone + SimdComplexField,
+    T: Scalar + Into<f64> + Clone,
     C: Dim + DimSub<Const<1>> + Clone,
     <C as DimSub<Const<1_usize>>>::Output: Dim,
     R: Dim + Clone,
@@ -285,28 +284,29 @@ where
 mod tests {
     use super::*;
     use approx::assert_ulps_eq;
-    use ndarray::{array, Array2};
     use test_case::test_case;
 
-    #[test_case( array![[0, 1], [1, 0]],  0.5 ; "positive value")]
-    #[test_case( array![[0, 1, -1], [-1, 0, 1], [1, -1, 0]],  0.0 ; "rock-paper-scisors")]
-    fn value<T>(matrix: Array2<T>, expected_value: f64)
+    use core::fmt::Debug;
+
+    #[test_case( [[0, 1], [1, 0]],  0.5 ; "positive value")]
+    #[test_case( [[0, 1, -1], [-1, 0, 1], [1, -1, 0]],  0.0 ; "rock-paper-scisors")]
+    fn value<T, const R: usize, const C: usize>(matrix: [[T; C]; R], expected_value: f64)
     where
-        T: Into<f64> + Clone + std::cmp::PartialEq + std::fmt::Debug,
+        T: Clone + PartialEq + Debug + 'static + Into<f64>,
     {
-        let matrix = matrix.mapv(|v| -> f64 { v.into() });
         let matrix_game = MatrixGame::from(matrix);
         let value = matrix_game.value().unwrap();
         assert_ulps_eq!(value, expected_value, max_ulps = 1);
     }
 
-    #[test_case( array![[0, 1], [1, 0]],  vec![0.5, 0.5] ; "positive value")]
-    #[test_case( array![[0, 1, -1], [-1, 0, 1], [1, -1, 0]],  vec![1./3., 1./3., 1./3.] ; "rock-paper-scisors")]
-    fn some_solution_for_player_row<T>(matrix: Array2<T>, expected_strategy: Vec<f64>)
-    where
-        T: Into<f64> + Clone,
+    #[test_case( [[0, 1], [1, 0]],  vec![0.5, 0.5] ; "positive value")]
+    #[test_case( [[0, 1, -1], [-1, 0, 1], [1, -1, 0]],  vec![1./3., 1./3., 1./3.] ; "rock-paper-scisors")]
+    fn some_solution_for_player_row<T, const R: usize, const C: usize>(
+        matrix: [[T; C]; R],
+        expected_strategy: Vec<f64>,
+    ) where
+        T: Clone + PartialEq + Debug + 'static + Into<f64>,
     {
-        let matrix = matrix.mapv(|v| -> f64 { v.into() });
         let matrix_game = MatrixGame::from(matrix);
         let optimal_row_strategy = matrix_game.some_solution_for_player(0).unwrap();
         for i in 0..expected_strategy.len() {
