@@ -1,8 +1,9 @@
 
 
 - [ ] MatrixGame
-  - [ ] reduce_best
-  - [ ] completely_mixed
+  - [ ] mixed_nash
+    - [ ] Traits cleaning
+      - [ ] Only f64 use
   - [ ] play
     - [ ] fasteval -> other
 - [ ] PolynomialMatrixGame

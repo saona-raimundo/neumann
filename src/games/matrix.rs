@@ -1,6 +1,7 @@
 use nalgebra::{
-    allocator::Reallocator, Const, DefaultAllocator, Dim, DimDiff, DimSub, Matrix, RawStorage,
-    Scalar, Storage, U1,
+    allocator::{Allocator, Reallocator},
+    Const, DefaultAllocator, Dim, DimDiff, DimSub, Matrix, OMatrix, Owned, RawStorage, Scalar,
+    Storage, U1,
 };
 // use std::collections::HashSet;
 // use std::fmt;
@@ -146,5 +147,33 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.matrix)
+    }
+}
+
+impl<T, R, C, S> MatrixGame<T, R, C, S>
+where
+    T: ,
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+    DefaultAllocator: Allocator<T, R, C>,
+{
+    pub fn map<T2: Scalar, F: FnMut(T) -> T2>(&self, f: F) -> MatrixGame<T2, R, C, Owned<T2, R, C>>
+    where
+        T: Scalar,
+        DefaultAllocator: Allocator<T2, R, C>,
+    {
+        let matrix: OMatrix<T2, R, C> = self.matrix.map(f);
+        MatrixGame { matrix }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn map() {
+        MatrixGame::from([[1], [2]]).map(|v| v as f64);
     }
 }

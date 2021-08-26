@@ -8,6 +8,8 @@ use nalgebra::{
 
 use crate::{equilibria::MixedNash, traits::Solvable, MatrixGame};
 
+mod completely_mixed;
+
 impl<T, R, C, S> Solvable<MixedNash<f64>> for MatrixGame<T, R, C, S>
 where
     T: Scalar + Into<f64> + Clone,
@@ -179,9 +181,9 @@ where
 impl<T, R, C, S> MatrixGame<T, R, C, S>
 where
     T: Scalar + Into<f64> + Clone,
-    R: Dim + DimSub<Const<1>> + Clone,
+    R: Dim + DimSub<Const<1>>,
     <R as DimSub<Const<1_usize>>>::Output: Dim,
-    C: Dim + Clone,
+    C: Dim,
     S: Storage<T, R, C> + Clone,
     DefaultAllocator: Allocator<T, C, <R as DimSub<Const<1_usize>>>::Output>
         + Allocator<T, <R as DimSub<Const<1_usize>>>::Output, C>
@@ -231,9 +233,9 @@ where
 impl<T, R, C, S> MatrixGame<T, R, C, S>
 where
     T: Scalar + Into<f64> + Clone,
-    C: Dim + DimSub<Const<1>> + Clone,
+    C: Dim + DimSub<Const<1>>,
     <C as DimSub<Const<1_usize>>>::Output: Dim,
-    R: Dim + Clone,
+    R: Dim,
     S: Storage<T, R, C> + Clone,
     DefaultAllocator: Allocator<T, R, <C as DimSub<Const<1_usize>>>::Output>
         + Allocator<T, <C as DimSub<Const<1_usize>>>::Output, R>
