@@ -3,30 +3,25 @@
 use nalgebra::{
     allocator::{Allocator, Reallocator},
     constraint::{AreMultipliable, ShapeConstraint},
-    Const, DefaultAllocator, Dim, DimSub, Dynamic, Scalar, Storage,
+    Const, DefaultAllocator, Dim, DimSub, Dynamic, Storage,
 };
 
 use crate::{traits::Solvable, MatrixGame};
 
-impl<T, R, C, S> MatrixGame<T, R, C, S>
+impl<R, C, S> MatrixGame<f64, R, C, S>
 where
-    T: Scalar + Into<f64> + Clone,
     R: Dim + DimSub<Const<1>>,
     C: Dim,
-    S: Storage<T, R, C> + Clone,
-    DefaultAllocator: Allocator<T, C, R>
-        + Allocator<T, R, C>
-        + Allocator<f64, R, C>
+    S: Storage<f64, R, C> + Clone,
+    DefaultAllocator: Allocator<f64, R, C>
         + Allocator<f64, C, R>
         + Allocator<f64, R>
         + Allocator<f64, C>
-        + Allocator<T, C, <R as DimSub<Const<1_usize>>>::Output>
-        + Allocator<T, <R as DimSub<Const<1_usize>>>::Output, C>
         + Allocator<f64, <R as DimSub<Const<1_usize>>>::Output, C>
         + Allocator<f64, C, <R as DimSub<Const<1_usize>>>::Output>
         + Allocator<f64, <R as DimSub<Const<1_usize>>>::Output>
         + Allocator<f64, C>
-        + Reallocator<T, R, C, <R as DimSub<Const<1_usize>>>::Output, C>,
+        + Reallocator<f64, R, C, <R as DimSub<Const<1_usize>>>::Output, C>,
     ShapeConstraint: AreMultipliable<R, C, Dynamic, Dynamic>
         + AreMultipliable<C, R, Dynamic, Dynamic>
         + AreMultipliable<Dynamic, Dynamic, R, C>
@@ -43,19 +38,15 @@ where
     ///
     /// Rock-paper-scisors is a completely-mixed game.
     /// ```
-    /// # use ndarray::array;
     /// # use neumann::MatrixGame;
-    /// let rewards = array![[0, 1, -1], [1, -1, 0], [-1, 0, 1]];
-    /// let matrix_game = MatrixGame::from(rewards);
+    /// let matrix_game = MatrixGame::from([[0., 1., -1.], [1., -1., 0.], [-1., 0., 1.]]);
     /// assert!(matrix_game.is_completely_mixed());
     /// ```
     ///
     /// A game with dominant strategies is not completely-mixed.
     /// ```
-    /// # use ndarray::array;
     /// # use neumann::MatrixGame;
-    /// let rewards = array![[0, 2, 1], [2, 0, 1], [-1, -1, -1]];
-    /// let matrix_game = MatrixGame::from(rewards);
+    /// let matrix_game = MatrixGame::from([[0., 2., 1.], [2., 0., 1.], [-1., -1., -1.]]);
     /// assert!(!matrix_game.is_completely_mixed());
     /// ```
     ///
@@ -66,6 +57,8 @@ where
     pub fn is_completely_mixed(&self) -> bool {
         if !self.is_square() {
             false
+        } else if self.nrows() == 1 {
+            true
         } else {
             let full_value = self.value();
             let sub_value = self.clone().remove_row(self.best_row_removal()).value();

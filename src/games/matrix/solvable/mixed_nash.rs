@@ -1,27 +1,34 @@
 use core::marker::PhantomData;
 use minilp::{ComparisonOp, OptimizationDirection, Problem, Variable};
 use nalgebra::{
-    allocator::{Allocator, Reallocator},
+    allocator::Allocator,
     constraint::{AreMultipliable, ShapeConstraint},
-    Const, DMatrix, DVector, DefaultAllocator, Dim, DimSub, Dynamic, Scalar, Storage,
+    DMatrix, DVector, DefaultAllocator, Dim, Dynamic, Storage,
 };
 
 use crate::{equilibria::MixedNash, traits::Solvable, MatrixGame};
 
 mod completely_mixed;
 
-impl<T, R, C, S> Solvable<MixedNash<f64>> for MatrixGame<T, R, C, S>
+/// Mixed Nash equilibrium solution for Matrix games.
+///
+/// # Known issues
+///
+/// The precision of the implementation does not allow to solve games
+/// with small entries. For example, consider the following.
+/// ```
+/// # use neumann::{MatrixGame, traits::Solvable};
+/// let small_entries =[[5e-10, -1e-10], [-1e-10, 5e-10]];
+/// let matrix_game = MatrixGame::from(small_entries);
+/// assert!(matrix_game.value().unwrap() >= 5e-10); // correct answer is 4e-10
+/// ```
+impl<R, C, S> Solvable<MixedNash<f64>> for MatrixGame<f64, R, C, S>
 where
-    T: Scalar + Into<f64> + Clone,
-    S: Storage<T, R, C> + Clone,
+    S: Storage<f64, R, C> + Clone,
     R: Dim,
     C: Dim,
-    DefaultAllocator: Allocator<T, C, R>
-        + Allocator<T, R, C>
-        + Allocator<f64, R, C>
-        + Allocator<f64, C, R>
-        + Allocator<f64, R>
-        + Allocator<f64, C>,
+    DefaultAllocator:
+        Allocator<f64, R, C> + Allocator<f64, C, R> + Allocator<f64, R> + Allocator<f64, C>,
     ShapeConstraint: AreMultipliable<R, C, Dynamic, Dynamic>
         + AreMultipliable<C, R, Dynamic, Dynamic>
         + AreMultipliable<Dynamic, Dynamic, R, C>
@@ -78,7 +85,7 @@ where
                 Some(strategy)
             }
             1 => {
-                let matrix = self.matrix.map(|v| -> f64 { -v.into() }).transpose();
+                let matrix = -self.matrix.transpose();
                 MatrixGame { matrix }.some_solution_for_player(0)
             }
             _ => unreachable!(),
@@ -110,12 +117,11 @@ impl<F> Iterator for Iter<F> {
 /// # Mixed Nash equilirbium
 ///
 /// Implementations related to this solution concept.
-impl<T, R, C, S> MatrixGame<T, R, C, S>
+impl<R, C, S> MatrixGame<f64, R, C, S>
 where
-    T: Scalar + Into<f64> + Clone,
     R: Dim,
     C: Dim,
-    S: Storage<T, R, C>,
+    S: Storage<f64, R, C>,
 {
     /// Construct the optimization problem the row player has to solve.
     fn row_player_lp(&self) -> (Problem, (Vec<Variable>, Variable)) {
@@ -178,114 +184,10 @@ where
     }
 }
 
-impl<T, R, C, S> MatrixGame<T, R, C, S>
-where
-    T: Scalar + Into<f64> + Clone,
-    R: Dim + DimSub<Const<1>>,
-    <R as DimSub<Const<1_usize>>>::Output: Dim,
-    C: Dim,
-    S: Storage<T, R, C> + Clone,
-    DefaultAllocator: Allocator<T, C, <R as DimSub<Const<1_usize>>>::Output>
-        + Allocator<T, <R as DimSub<Const<1_usize>>>::Output, C>
-        + Allocator<f64, <R as DimSub<Const<1_usize>>>::Output, C>
-        + Allocator<f64, C, <R as DimSub<Const<1_usize>>>::Output>
-        + Allocator<f64, <R as DimSub<Const<1_usize>>>::Output>
-        + Allocator<f64, C>
-        + Reallocator<T, R, C, <R as DimSub<Const<1_usize>>>::Output, C>,
-    ShapeConstraint: AreMultipliable<<R as DimSub<Const<1_usize>>>::Output, C, Dynamic, Dynamic>
-        + AreMultipliable<C, <R as DimSub<Const<1_usize>>>::Output, Dynamic, Dynamic>
-        + AreMultipliable<Dynamic, Dynamic, <R as DimSub<Const<1_usize>>>::Output, C>
-        + AreMultipliable<Dynamic, Dynamic, C, <R as DimSub<Const<1_usize>>>::Output>,
-{
-    /// Returns the least beneficial action for the row player.
-    ///
-    /// In other words, if this action is prohibited for the row player,
-    /// then the value of the restricted game diminishes the least.
-    ///
-    /// # Panics
-    ///
-    /// If the game is empty.
-    ///
-    /// # Examples
-    ///
-    /// Forgetting about the worst action for the row player.
-    /// ```
-    /// # use neumann::MatrixGame;
-    /// let matrix_game = MatrixGame::from([[0., 1.], [1., 0.], [-1., -1.]]);
-    /// assert_eq!(matrix_game.best_row_removal(), 2);
-    /// ```
-    pub fn best_row_removal(&self) -> usize {
-        assert!(!self.is_empty());
-        (0..self.nrows())
-            .map(|i| (i, self.clone().remove_row(i).value()))
-            .max_by(|(_, v), (_, u)| {
-                if v < u {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            })
-            .map(|(i, _)| i)
-            .unwrap()
-    }
-}
-
-impl<T, R, C, S> MatrixGame<T, R, C, S>
-where
-    T: Scalar + Into<f64> + Clone,
-    C: Dim + DimSub<Const<1>>,
-    <C as DimSub<Const<1_usize>>>::Output: Dim,
-    R: Dim,
-    S: Storage<T, R, C> + Clone,
-    DefaultAllocator: Allocator<T, R, <C as DimSub<Const<1_usize>>>::Output>
-        + Allocator<T, <C as DimSub<Const<1_usize>>>::Output, R>
-        + Allocator<f64, <C as DimSub<Const<1_usize>>>::Output, R>
-        + Allocator<f64, R, <C as DimSub<Const<1_usize>>>::Output>
-        + Allocator<f64, <C as DimSub<Const<1_usize>>>::Output>
-        + Allocator<f64, R>
-        + Reallocator<T, R, C, R, <C as DimSub<Const<1_usize>>>::Output>,
-    ShapeConstraint: AreMultipliable<R, <C as DimSub<Const<1_usize>>>::Output, Dynamic, Dynamic>
-        + AreMultipliable<<C as DimSub<Const<1_usize>>>::Output, R, Dynamic, Dynamic>
-        + AreMultipliable<Dynamic, Dynamic, R, <C as DimSub<Const<1_usize>>>::Output>
-        + AreMultipliable<Dynamic, Dynamic, <C as DimSub<Const<1_usize>>>::Output, R>,
-{
-    /// Returns the least beneficial action for the column player.
-    ///
-    /// In other words, if this action is prohibited for the column player,
-    /// then the value of the restricted game increases the least.
-    ///
-    /// # Panics
-    ///
-    /// If the game is empty.
-    ///
-    /// # Examples
-    ///
-    /// Forgetting about the worst action for the column player.
-    /// ```
-    /// # use neumann::MatrixGame;
-    /// let matrix_game = MatrixGame::from([[1., 0.], [1., -1.]]);
-    /// assert_eq!(matrix_game.best_column_removal(), 0);
-    /// ```
-    pub fn best_column_removal(&self) -> usize {
-        assert!(!self.is_empty());
-        (0..self.ncols())
-            .map(|i| (i, self.clone().remove_column(i).value()))
-            .min_by(|(_, v), (_, u)| {
-                if v < u {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            })
-            .map(|(i, _)| i)
-            .unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_ulps_eq;
+    use approx::{assert_abs_diff_eq, assert_ulps_eq};
     use test_case::test_case;
 
     use core::fmt::Debug;
@@ -296,7 +198,7 @@ mod tests {
     where
         T: Clone + PartialEq + Debug + 'static + Into<f64>,
     {
-        let matrix_game = MatrixGame::from(matrix);
+        let matrix_game = MatrixGame::from(matrix).map(|x| x.into());
         let value = matrix_game.value().unwrap();
         assert_ulps_eq!(value, expected_value, max_ulps = 1);
     }
@@ -309,10 +211,59 @@ mod tests {
     ) where
         T: Clone + PartialEq + Debug + 'static + Into<f64>,
     {
-        let matrix_game = MatrixGame::from(matrix);
+        let matrix_game = MatrixGame::from(matrix).map(|x| x.into());
         let optimal_row_strategy = matrix_game.some_solution_for_player(0).unwrap();
         for i in 0..expected_strategy.len() {
             assert_ulps_eq!(optimal_row_strategy[i], expected_strategy[i], max_ulps = 1);
         }
+    }
+
+    #[test_case( [[0, 1], [1, 0]],  (vec![0.5, 0.5], vec![0.5, 0.5], 0.5) ; "positive value")]
+    #[test_case( [[0, 1], [1, 0], [-1, -1]],  (vec![0.5, 0.5, 0.], vec![0.5, 0.5], 0.5) ; "positive value with extra strategy")]
+    #[test_case( [[0, 1, -1], [-1, 0, 1], [1, -1, 0]],  (vec![1./3., 1./3., 1./3.], vec![1./3., 1./3., 1./3.], 0.0) ; "rock-paper-scisors")]
+    #[test_case(
+        [
+            [1, 1, -2],
+            [1, -2, 1],
+            [-2, 1, 1]
+        ],
+        (vec![1./3., 1./3., 1./3.], vec![1./3., 1./3., 1./3.], 0.0);
+        "symmetric game 3x3"
+    )]
+    #[test_case( [[1, 1, 1, -3], [1, 1, -3, 1], [1, -3, 1, 1], [-3, 1, 1, 1]],  (vec![1./4., 1./4., 1./4., 1./4.], vec![1./4., 1./4., 1./4., 1./4.], 0.0) ; "symmetric game 4x4")]
+    #[test_case(
+        [
+            [11, 11, 11, -550],
+            [11, 11, -550, 11],
+            [11, -550, 11, 11],
+            [-550, 11, 11, 11]
+        ],
+        (vec![1./4., 1./4., 1./4., 1./4.], vec![1./4., 1./4., 1./4., 1./4.], -129.25);
+        "symmetric game with bigger entries"
+    )]
+    fn some_solution<T, const R: usize, const C: usize>(
+        matrix: [[T; C]; R],
+        expected_solution: (Vec<f64>, Vec<f64>, f64),
+    ) where
+        T: Clone + PartialEq + Debug + 'static + Into<f64>,
+    {
+        let matrix_game = MatrixGame::from(matrix).map(|x| x.into());
+        let (optimal_row_strategy, optimal_column_strategy, value) =
+            matrix_game.some_solution().unwrap();
+        for i in 0..expected_solution.0.len() {
+            assert_abs_diff_eq!(
+                optimal_row_strategy[i],
+                expected_solution.0[i],
+                epsilon = 1e-10
+            );
+        }
+        for j in 0..expected_solution.1.len() {
+            assert_abs_diff_eq!(
+                optimal_column_strategy[j],
+                expected_solution.1[j],
+                epsilon = 1e-10
+            );
+        }
+        assert_ulps_eq!(value, expected_solution.2, max_ulps = 1);
     }
 }

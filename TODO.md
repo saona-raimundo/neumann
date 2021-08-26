@@ -1,9 +1,7 @@
 
 
 - [ ] MatrixGame
-  - [ ] mixed_nash
-    - [ ] Traits cleaning
-      - [ ] Only f64 use
+  - [ ] kernel_completely_mixed
   - [ ] play
     - [ ] fasteval -> other
 - [ ] PolynomialMatrixGame

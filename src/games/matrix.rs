@@ -10,9 +10,14 @@ use core::fmt;
 // More implementations
 mod play;
 mod solvable;
-mod transformations;
+mod transformation;
+mod types;
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
+///
+/// # Implementation
+///
+/// It is a thin wrapper from a `nalgebra::Matrix`. See types definitions to make your life easier.
 ///
 /// # Examples
 ///
@@ -147,6 +152,15 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.matrix)
+    }
+}
+
+impl<T, R: Dim, C: Dim, S: fmt::Debug> fmt::Debug for MatrixGame<T, R, C, S> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        formatter
+            .debug_struct("MatrixGame")
+            .field("matrix", &self.matrix)
+            .finish()
     }
 }
 

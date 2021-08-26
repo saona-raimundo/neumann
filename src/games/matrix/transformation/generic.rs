@@ -1,9 +1,10 @@
 //! All transformations between different types.
 
 use core::fmt::Debug;
-use nalgebra::{DMatrix, DefaultAllocator, Dynamic, Matrix, Scalar, VecStorage};
+use nalgebra::{DMatrix, Dynamic, Matrix, SMatrix, Scalar};
 use ndarray::Array2;
 
+use crate::games::matrix::types::{DMatrixGame, SMatrixGame};
 use crate::MatrixGame;
 
 impl<T, R, C, S> From<Matrix<T, R, C, S>> for MatrixGame<T, R, C, S> {
@@ -12,16 +13,12 @@ impl<T, R, C, S> From<Matrix<T, R, C, S>> for MatrixGame<T, R, C, S> {
     }
 }
 
-// # Note
-//
-// When constant generics has more support, this conversion should be smoother.
-impl<T, const R: usize, const C: usize> From<[[T; C]; R]>
-    for MatrixGame<T, Dynamic, Dynamic, VecStorage<T, Dynamic, Dynamic>>
+impl<T, const R: usize, const C: usize> From<[[T; C]; R]> for SMatrixGame<T, R, C>
 where
     T: Clone + PartialEq + Debug + 'static,
 {
     fn from(source: [[T; C]; R]) -> Self {
-        let matrix = DMatrix::from_fn(R, C, |r, c| source[r][c].clone());
+        let matrix = SMatrix::from_fn(|r, c| source[r][c].clone());
         MatrixGame { matrix }
     }
 }
@@ -29,13 +26,7 @@ where
 // # Note
 //
 // ndarray might implement constant generics in the future
-impl<T> From<Array2<T>>
-    for MatrixGame<
-        T,
-        Dynamic,
-        Dynamic,
-        <DefaultAllocator as nalgebra::allocator::Allocator<T, Dynamic, Dynamic>>::Buffer,
-    >
+impl<T> From<Array2<T>> for DMatrixGame<T>
 where
     T: Scalar,
 {
