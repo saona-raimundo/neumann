@@ -1,10 +1,16 @@
+//! All traits of the crate.
+
 /// Games that can be played in an interactive command-line fashion.
+#[cfg(feature = "play")]
 pub trait CliPlayable {
+    type Outcome;
+    type Error: std::error::Error;
+
     /// Starts an opinionated version of the game as a cli application.
-    fn play(&self);
+    fn play(&self) -> Result<Self::Outcome, Self::Error>;
     /// Starts an opinionated version of the game as a cli application,
     /// where the actions of other players are simulated.
-    fn play_solo(&self);
+    fn play_solo(&self) -> Result<Self::Outcome, Self::Error>;
 }
 
 /// [Normal] form (also called strategic) games

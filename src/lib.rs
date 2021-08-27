@@ -26,3 +26,10 @@ pub mod equilibria;
 pub mod games;
 /// Traits of this crate.
 pub mod traits;
+
+pub mod prelude {
+    pub use crate::games::matrix::MatrixGame;
+    #[cfg(feature = "play")]
+    pub use crate::traits::CliPlayable;
+    pub use crate::traits::Solvable;
+}

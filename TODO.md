@@ -1,7 +1,6 @@
 
 
 - [ ] MatrixGame
-  - [ ] kernel_completely_mixed
   - [ ] play
     - [ ] fasteval -> other
 - [ ] PolynomialMatrixGame

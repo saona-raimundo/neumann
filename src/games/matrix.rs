@@ -8,6 +8,7 @@ use nalgebra::{
 use core::fmt;
 
 // More implementations
+#[cfg(feature = "play")]
 mod play;
 mod solvable;
 mod transformation;

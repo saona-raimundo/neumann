@@ -13,6 +13,10 @@ Neumann provides utilities to research and implement game-theoretical algorithms
 
 - Matrix Games
 
+# Optional features
+
+- `play` - Enables the trait `CliPlayable`. It is more of a joyful feature, for those who want to actually play a game defined in Rust. Have fun!
+
 # Related resources
 
 - Similar libraries 
