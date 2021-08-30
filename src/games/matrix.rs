@@ -1,18 +1,21 @@
+use core::{
+    fmt,
+    ops::{AddAssign, MulAssign},
+};
 use nalgebra::{
     allocator::{Allocator, Reallocator},
-    Const, DefaultAllocator, Dim, DimDiff, DimSub, Matrix, OMatrix, Owned, RawStorage, Scalar,
-    Storage, U1,
+    constraint::{SameNumberOfColumns, SameNumberOfRows, ShapeConstraint},
+    ClosedAdd, ClosedMul, Const, DefaultAllocator, Dim, DimDiff, DimSub, Matrix, OMatrix, Owned,
+    RawStorage, Scalar, Storage, StorageMut, U1,
 };
-// use std::collections::HashSet;
-// use std::fmt;
-use core::fmt;
+use num_traits::Zero;
 
 // More implementations
 #[cfg(feature = "play")]
 mod play;
 mod solvable;
 mod transformation;
-mod types;
+pub mod types;
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
 ///
@@ -56,23 +59,60 @@ impl<T: Scalar, R: Dim, C: Dim, S: RawStorage<T, R, C>> MatrixGame<T, R, C, S> {
     /// assert!(!matrix_game.is_square());
     /// ```
     pub fn is_square(&self) -> bool {
-        let shape = self.matrix.shape();
+        let shape = self.shape();
         shape.0 == shape.1
     }
 
     /// The number of rows of this matrix game.
     pub fn nrows(&self) -> usize {
-        self.matrix.nrows()
+        let (nrows, _) = self.shape();
+        nrows
     }
 
     /// The number of columns of this matrix game.
     pub fn ncols(&self) -> usize {
-        self.matrix.ncols()
+        let (_, ncols) = self.shape();
+        ncols
     }
 
     /// The shape of this matrix game returned as the tuple (number of rows, number of columns).
     pub fn shape(&self) -> (usize, usize) {
         self.matrix.shape()
+    }
+}
+
+impl<T, R, C, S> MatrixGame<T, R, C, S>
+where
+    T: Scalar + Zero,
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    /// Returns `true` if `self` is equal to the additive identity.
+    ///
+    /// # Examples
+    ///
+    /// A zero matrix.
+    /// ```
+    /// # use neumann::MatrixGame;
+    /// let matrix_game = MatrixGame::from([[0, 0], [0, 0]]);
+    /// assert!(matrix_game.is_zero());
+    /// ```
+
+    // # Note
+    //
+    // The Zero trait can not be implemented since zero() -> Self
+    // has no meaning for Dynamic dimension.
+    pub fn is_zero(&self) -> bool {
+        let (nrows, ncols) = self.shape();
+        for row in 0..nrows {
+            for col in 0..ncols {
+                if !self.matrix[(row, col)].is_zero() {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 
@@ -180,6 +220,53 @@ where
     {
         let matrix: OMatrix<T2, R, C> = self.matrix.map(f);
         MatrixGame { matrix }
+    }
+}
+
+impl<T, R, R2, C, C2, S, S2> PartialEq<MatrixGame<T, R2, C2, S2>> for MatrixGame<T, R, C, S>
+where
+    T: Scalar + PartialEq,
+    C: Dim,
+    C2: Dim,
+    R: Dim,
+    R2: Dim,
+    S: RawStorage<T, R, C>,
+    S2: RawStorage<T, R2, C2>,
+{
+    fn eq(&self, right: &MatrixGame<T, R2, C2, S2>) -> bool {
+        self.shape() == right.shape()
+            && self
+                .matrix
+                .iter()
+                .zip(right.matrix.iter())
+                .all(|(l, r)| l == r)
+    }
+}
+
+impl<T, R: Dim, C: Dim, S> MulAssign<T> for MatrixGame<T, R, C, S>
+where
+    T: Scalar + ClosedMul,
+    S: StorageMut<T, R, C>,
+{
+    fn mul_assign(&mut self, rhs: T) {
+        self.matrix *= rhs;
+    }
+}
+
+impl<'a, T, R1, C1, R2, C2, SA, SB> AddAssign<&'a MatrixGame<T, R2, C2, SB>>
+    for MatrixGame<T, R1, C1, SA>
+where
+    R1: Dim,
+    C1: Dim,
+    R2: Dim,
+    C2: Dim,
+    T: Scalar + ClosedAdd,
+    SA: StorageMut<T, R1, C1>,
+    SB: Storage<T, R2, C2>,
+    ShapeConstraint: SameNumberOfRows<R1, R2> + SameNumberOfColumns<C1, C2>,
+{
+    fn add_assign(&mut self, rhs: &'a MatrixGame<T, R2, C2, SB>) {
+        self.matrix += &rhs.matrix;
     }
 }
 

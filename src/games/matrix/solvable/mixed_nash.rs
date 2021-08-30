@@ -53,6 +53,11 @@ where
         Some((row_strategy, column_strategy, value))
     }
 
+    /// Returns true if `proposal` is a mixed Nash exuilibrium.
+    ///
+    /// # Errors
+    ///
+    /// If dimensions do not match.
     fn is_solution(&self, proposal: <Self as Solvable<MixedNash<f64>>>::Solution) -> bool {
         let value = self.value().unwrap();
         let matrix = self.matrix.map(|v| -> f64 { v.into() });

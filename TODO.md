@@ -1,23 +1,8 @@
-
-
 - [ ] MatrixGame
-  - [ ] play
-    - [ ] fasteval -> other
+  - [ ] Interoperability feature
 - [ ] PolynomialMatrixGame
+  - [ ] From the ground up!
 - [ ] StochasticGame
-
-
-
-Matrix game from nalgebra matrices through constant generics
-
-Stochastic games
-
-- Mejorar error messages
-  - new()
-    - Indicate when there are more actions than specified
-  - approx_value()
-    - Error is over machine precision
-  - Error / Error Reporter
 
 
 

@@ -1,4 +1,4 @@
 pub mod matrix;
+pub mod polynomial_matrix;
 // TODO
-// pub mod polynomial_matrix;
 // pub mod stochastic;

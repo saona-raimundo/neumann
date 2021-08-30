@@ -1,5 +1,8 @@
 //! All traits of the crate.
 
+/// Research specific traits.
+pub mod research;
+
 /// Games that can be played in an interactive command-line fashion.
 #[cfg(feature = "play")]
 pub trait CliPlayable {
