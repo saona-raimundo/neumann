@@ -17,14 +17,8 @@
 // Re-export all games
 // pub use certifying::Certified;
 pub use games::{
-    matrix::{
-        types::{DMatrixGame, SMatrixGame},
-        MatrixGame,
-    },
-    polynomial_matrix::{
-        types::{DPolynomialMatrixGame, SPolynomialMatrixGame},
-        PolynomialMatrixGame,
-    },
+    matrix::{DMatrixGame, MatrixGame, SMatrixGame},
+    polynomial_matrix::{DPolynomialMatrixGame, PolynomialMatrixGame, SPolynomialMatrixGame},
 };
 
 // mod certifying;

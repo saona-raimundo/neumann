@@ -27,6 +27,8 @@ rand_distr = { version = "0.4.1", optional = true }
 rand = { version = "0.8.4", optional = true }
 thiserror = "1.0.26"
 num-traits = "0.2.14"
+num-rational = "0.4.0"
+polynomials = "0.2.4"
 # pyo3 = "0.13.2"
 # pythonize = "0.13.0"
 

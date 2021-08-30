@@ -3,18 +3,23 @@
 // use num_rational::Ratio;
 use core::{
     fmt,
+    mem::MaybeUninit,
     ops::{AddAssign, MulAssign},
 };
-use nalgebra::{ClosedMul, Dim, RawStorage, Scalar, StorageMut};
+use nalgebra::{
+    allocator::{Allocator, Reallocator},
+    ClosedMul, Const, DefaultAllocator, Dim, DimDiff, DimSub, Matrix, Owned, RawStorage,
+    RawStorageMut, Scalar, Storage, StorageMut, U1,
+};
 use num_traits::Zero;
 
 use crate::games::matrix::MatrixGame;
 
-#[cfg(feature = "play")]
-mod play;
-mod solvable;
 mod transformation;
-pub mod types;
+mod types;
+mod value_positivity;
+
+pub use types::*;
 
 /// Polynomial matrix games are [Matrix Games](https://en.wikipedia.org/wiki/Zero-sum_game) whith perturbation terms in terms of polynomials.
 ///
@@ -31,13 +36,13 @@ pub mod types;
 /// # use neumann::PolynomialMatrixGame;
 /// PolynomialMatrixGame::from([[[0, 1], [1, 0]], [[0, -1], [-1, 0]]]);
 /// ```
+#[derive(Clone)]
 pub struct PolynomialMatrixGame<T, R, C, S> {
     matrices: Vec<MatrixGame<T, R, C, S>>,
 }
 
 impl<T, R, C, S> PolynomialMatrixGame<T, R, C, S>
 where
-    T: Scalar,
     R: Dim,
     C: Dim,
     S: RawStorage<T, R, C>,
@@ -46,7 +51,6 @@ where
     pub fn is_empty(&self) -> bool {
         self.matrices.is_empty()
     }
-
     /// Returns `true` if both players have the same number of possible actions.
     pub fn is_square(&self) -> bool {
         let shape = self.shape();
@@ -71,8 +75,24 @@ where
     ///
     /// If `self` is empty.
     pub fn shape(&self) -> (usize, usize) {
-        assert!(!self.is_empty());
+        assert!(
+            !self.is_empty(),
+            "An empty polynomial matrix game has no shape."
+        );
         self.matrices[0].shape()
+    }
+
+    /// The shape of this matrix game returned as the tuple of generics (number of rows, number of columns).
+    ///
+    /// # Panics
+    ///
+    /// If `self` is empty.
+    pub fn shape_generic(&self) -> (R, C) {
+        assert!(
+            !self.is_empty(),
+            "An empty polynomial matrix game has no shape."
+        );
+        self.matrices[0].shape_generic()
     }
 }
 
@@ -169,13 +189,53 @@ where
         S: StorageMut<T, R, C>,
         MatrixGame<T, R, C, S>: Clone + MulAssign<T> + AddAssign<&'b MatrixGame<T, R, C, S>>,
     {
-        assert!(!self.matrices.is_empty());
+        assert!(
+            !self.matrices.is_empty(),
+            "An empty polynomial matrix game cannot be evaluated."
+        );
         let mut sum: MatrixGame<T, R, C, S> = self.matrices.last().unwrap().clone(); // Never fails by previous check
         for i in (0..self.matrices.len() - 1).rev() {
             sum *= epsilon.clone();
             sum += &self.matrices[i];
         }
         sum
+    }
+}
+
+impl<T, R, C, S> PolynomialMatrixGame<T, R, C, S>
+where
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    /// Returns a matrix containing the result of `f` applied to each of its entries.
+    pub fn map<T2: Scalar, F: FnMut(T) -> T2>(
+        &self,
+        mut f: F,
+    ) -> PolynomialMatrixGame<T2, R, C, Owned<T2, R, C>>
+    where
+        T: Scalar,
+        DefaultAllocator: Allocator<T2, R, C>,
+    {
+        let (nrows, ncols) = self.shape_generic();
+        let mut matrices = Vec::new();
+        for k in 0..self.matrices.len() {
+            let mut res = Matrix::uninit(nrows, ncols);
+
+            for j in 0..ncols.value() {
+                for i in 0..nrows.value() {
+                    // Safety: all indices are in range.
+                    unsafe {
+                        let a = self.matrices[k].matrix.data.get_unchecked(i, j).clone();
+                        *res.data.get_unchecked_mut(i, j) = MaybeUninit::new(f(a));
+                    }
+                }
+            }
+
+            // Safety: res is now fully initialized.
+            matrices.push(unsafe { res.assume_init() });
+        }
+        PolynomialMatrixGame::from(matrices)
     }
 }
 
@@ -198,6 +258,82 @@ where
             }
         }
         write!(f, "{}", string)
+    }
+}
+
+impl<T: Scalar, R: Dim, C: Dim, S: Storage<T, R, C>> PolynomialMatrixGame<T, R, C, S>
+where
+    R: DimSub<U1>,
+    DefaultAllocator: Reallocator<T, R, C, DimDiff<R, U1>, C>,
+{
+    /// Returns a polynomial matrix game with one action less for the row player.
+    ///
+    /// # Examples
+    ///
+    /// Forgetting about the first action for the row player.
+    /// ```
+    /// # use neumann::PolynomialMatrixGame;
+    /// let p = PolynomialMatrixGame::from([[[0, 1, -1], [1, -1, 0], [-1, 0, 1]]]);
+    /// let sub_p = p.remove_row(0);
+    /// assert_eq!(sub_p.shape(), (2, 3));
+    /// ```
+    pub fn remove_row(
+        self,
+        i: usize,
+    ) -> PolynomialMatrixGame<
+        T,
+        <R as DimSub<Const<1_usize>>>::Output,
+        C,
+        <DefaultAllocator as nalgebra::allocator::Allocator<
+            T,
+            <R as DimSub<Const<1_usize>>>::Output,
+            C,
+        >>::Buffer,
+    > {
+        let matrices: Vec<_> = self
+            .matrices
+            .into_iter()
+            .map(|matrix_game| matrix_game.remove_row(i))
+            .collect();
+        PolynomialMatrixGame::from(matrices)
+    }
+}
+
+impl<T: Scalar, R: Dim, C: Dim, S: Storage<T, R, C>> PolynomialMatrixGame<T, R, C, S>
+where
+    C: DimSub<U1>,
+    DefaultAllocator: Reallocator<T, R, C, R, DimDiff<C, U1>>,
+{
+    /// Returns a matrix game with one action less for the column player.
+    ///
+    /// # Examples
+    ///
+    /// Forgetting about the last action for the column player.
+    /// ```
+    /// # use neumann::PolynomialMatrixGame;
+    /// let p = PolynomialMatrixGame::from([[[0, 1, -1], [1, -1, 0], [-1, 0, 1]]]);
+    /// let sub_p = p.remove_column(2);
+    /// assert_eq!(sub_p.shape(), (3, 2));
+    /// ```
+    pub fn remove_column(
+        self,
+        i: usize,
+    ) -> PolynomialMatrixGame<
+        T,
+        R,
+        <C as DimSub<Const<1_usize>>>::Output,
+        <DefaultAllocator as nalgebra::allocator::Allocator<
+            T,
+            R,
+            <C as DimSub<Const<1_usize>>>::Output,
+        >>::Buffer,
+    > {
+        let matrices: Vec<_> = self
+            .matrices
+            .into_iter()
+            .map(|matrix_game| matrix_game.remove_column(i))
+            .collect();
+        PolynomialMatrixGame::from(matrices)
     }
 }
 

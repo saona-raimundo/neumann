@@ -1,10 +1,32 @@
 //! All generic on type transformations between different types.
 
 use core::fmt::Debug;
-use nalgebra::{Matrix, SMatrix};
+use nalgebra::{DMatrix, Dim, Matrix, RawStorage, SMatrix, Scalar};
+use polynomials::Polynomial;
 
-use crate::games::polynomial_matrix::types::SPolynomialMatrixGame;
-use crate::{MatrixGame, PolynomialMatrixGame, SMatrixGame};
+use crate::{
+    DPolynomialMatrixGame, MatrixGame, PolynomialMatrixGame, SMatrixGame, SPolynomialMatrixGame,
+};
+
+impl<T, R, C, S> PolynomialMatrixGame<T, R, C, S>
+where
+    T: Scalar,
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    pub fn into_dynamic(self) -> DPolynomialMatrixGame<T> {
+        let (nrows, ncols) = self.shape();
+        let matrices: Vec<_> = self
+            .matrices
+            .into_iter()
+            .map(|matrix_game| {
+                DMatrix::from_fn(nrows, ncols, |r, c| matrix_game.matrix[(r, c)].clone())
+            })
+            .collect();
+        DPolynomialMatrixGame::from(matrices)
+    }
+}
 
 impl<T, R, C, S> From<Vec<MatrixGame<T, R, C, S>>> for PolynomialMatrixGame<T, R, C, S> {
     fn from(matrices: Vec<MatrixGame<T, R, C, S>>) -> Self {
@@ -36,6 +58,25 @@ where
     }
 }
 
+impl<T, R, C, S> Into<DMatrix<Polynomial<T>>> for PolynomialMatrixGame<T, R, C, S>
+where
+    T: Clone,
+    Polynomial<T>: Scalar,
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    fn into(self) -> DMatrix<Polynomial<T>> {
+        let (nrows, ncols) = self.shape();
+        DMatrix::<Polynomial<T>>::from_fn(nrows, ncols, |r, c| {
+            let vec: Vec<_> = (0..self.matrices.len())
+                .map(|k| (self.matrices[k].matrix)[(r, c)].clone())
+                .collect();
+            Polynomial::from(vec)
+        })
+    }
+}
+
 #[cfg(feature = "interoperability")]
 mod ndarray {
     use ndarray::Array2;
@@ -53,5 +94,16 @@ mod ndarray {
             let matrices: Vec<DMatrixGame<T>> = matrices.into_iter().map(|m| m.into()).collect();
             DPolynomialMatrixGame::from(matrices)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn into_matrix_of_polynomials() {
+        let p = PolynomialMatrixGame::from([[[0]]]);
+        let _matrix_of_polynomials: DMatrix<Polynomial<usize>> = p.into();
     }
 }

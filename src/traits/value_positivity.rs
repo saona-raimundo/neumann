@@ -1,4 +1,6 @@
-/// Based of ??
+/// Stability concept for polynomially perturbed games[^1].
+///
+/// [^1] To appear.
 pub trait ValuePositivity {
     /// Type representation of perturbation.
     type Perturbation;
@@ -6,10 +8,14 @@ pub trait ValuePositivity {
     type ValuePositivityCertificate;
     /// Certificate of uniform value positivity.
     type UniformValuePositivityCertificate;
+    /// Certificate for functional form.
+    type FunctionalFormCertificate;
     /// Value of the game at a given perturbation.
     type Value;
     /// Function representation.
-    type FunctionalForm: Fn(Self::Perturbation) -> Self::Value;
+    ///
+    /// It is expected to implement some sort of `Fn(Self::Perturbation) -> Self::Value`.
+    type FunctionalForm;
 
     /// Returns a value for the error term `epsilon` such that
     /// kernels of optimal strategies are guaranteed not to change between this value and zero.
@@ -51,5 +57,18 @@ pub trait ValuePositivity {
     ) -> bool;
 
     /// Returns the value function at a right neigborhood of zero.
-    fn functional_form(&self) -> Self::FunctionalForm;
+    fn functional_form(&self) -> Self::FunctionalForm {
+        self.functional_form_certifying().0
+    }
+
+    /// Returns the value function at a right neigborhood of zero,
+    /// and gives a certificate of this answer.
+    fn functional_form_certifying(&self)
+        -> (Self::FunctionalForm, Self::FunctionalFormCertificate);
+
+    /// Returns `true` if `certifying_output` is correct.
+    fn functional_form_checker(
+        &self,
+        certifying_output: (Self::FunctionalForm, Self::FunctionalFormCertificate),
+    ) -> bool;
 }

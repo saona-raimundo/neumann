@@ -1,7 +1,7 @@
 //! All traits of the crate.
 
 /// Research specific traits.
-pub mod research;
+pub mod value_positivity;
 
 /// Games that can be played in an interactive command-line fashion.
 #[cfg(feature = "play")]

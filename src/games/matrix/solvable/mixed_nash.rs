@@ -35,6 +35,7 @@ where
         + AreMultipliable<Dynamic, Dynamic, C, R>,
 {
     type PlayerStrategy = Vec<f64>;
+    /// Row optimal strategy, column optimal strategy, value.
     type Solution = (Vec<f64>, Vec<f64>, f64);
     type SolutionIter = Iter<f64>;
     type Value = f64;
@@ -83,7 +84,11 @@ where
         &self,
         player: usize,
     ) -> Option<<Self as Solvable<MixedNash<f64>>>::PlayerStrategy> {
-        assert!(player < 2);
+        assert!(
+            player < 2,
+            "There are only two players in a matrix game (0 and 1), you asked for player {}",
+            player
+        );
         match player {
             0 => {
                 let (strategy, _) = self.solve_row();

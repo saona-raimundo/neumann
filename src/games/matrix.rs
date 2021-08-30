@@ -15,7 +15,9 @@ use num_traits::Zero;
 mod play;
 mod solvable;
 mod transformation;
-pub mod types;
+mod types;
+
+pub use types::*;
 
 /// [Matrix games](https://en.wikipedia.org/wiki/Zero-sum_game) are finite zero-sum two-player games.
 ///
@@ -40,7 +42,9 @@ impl<T: Scalar, R: Dim, C: Dim, S: RawStorage<T, R, C>> MatrixGame<T, R, C, S> {
     pub fn is_empty(&self) -> bool {
         self.matrix.is_empty()
     }
+}
 
+impl<T, R: Dim, C: Dim, S: RawStorage<T, R, C>> MatrixGame<T, R, C, S> {
     /// Returns `true` if both players have the same number of possible actions.
     ///
     /// # Examples
@@ -78,6 +82,10 @@ impl<T: Scalar, R: Dim, C: Dim, S: RawStorage<T, R, C>> MatrixGame<T, R, C, S> {
     /// The shape of this matrix game returned as the tuple (number of rows, number of columns).
     pub fn shape(&self) -> (usize, usize) {
         self.matrix.shape()
+    }
+    /// The shape of this matrix game returned as the tuple of generics (number of rows, number of columns).
+    pub fn shape_generic(&self) -> (R, C) {
+        self.matrix.shape_generic()
     }
 }
 
@@ -207,7 +215,6 @@ impl<T, R: Dim, C: Dim, S: fmt::Debug> fmt::Debug for MatrixGame<T, R, C, S> {
 
 impl<T, R, C, S> MatrixGame<T, R, C, S>
 where
-    T: ,
     R: Dim,
     C: Dim,
     S: RawStorage<T, R, C>,

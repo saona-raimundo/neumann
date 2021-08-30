@@ -1,10 +1,24 @@
 //! All generic on type transformations between different types.
 
 use core::fmt::Debug;
-use nalgebra::{Matrix, SMatrix};
+use nalgebra::{DMatrix, Dim, Matrix, RawStorage, SMatrix, Scalar};
 
 use crate::games::matrix::types::SMatrixGame;
-use crate::MatrixGame;
+use crate::{DMatrixGame, MatrixGame};
+
+impl<T, R, C, S> MatrixGame<T, R, C, S>
+where
+    T: Scalar,
+    R: Dim,
+    C: Dim,
+    S: RawStorage<T, R, C>,
+{
+    pub fn into_dynamic(self) -> DMatrixGame<T> {
+        let (nrows, ncols) = self.shape();
+        let matrix = DMatrix::from_fn(nrows, ncols, |r, c| self.matrix[(r, c)].clone());
+        DMatrixGame::from(matrix)
+    }
+}
 
 impl<T, R, C, S> From<Matrix<T, R, C, S>> for MatrixGame<T, R, C, S> {
     fn from(matrix: Matrix<T, R, C, S>) -> Self {
