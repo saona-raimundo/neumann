@@ -9,11 +9,17 @@ Game Theory algorithms in Rust.
 
 Neumann provides utilities to research and implement game-theoretical algorithms. 
 
-# Features
+## Features
 
 - Matrix Games
 
-# Related resources
+## Status
+
+Waiting for better support for:
+- CAS (Computer algebra system)
+- Exact LP (Linear Programming) solver 
+
+## Related resources
 
 - Other frameworks
   - [PRISM](https://www.prismmodelchecker.org/) - probabilistic model checker
@@ -31,7 +37,7 @@ Neumann provides utilities to research and implement game-theoretical algorithms
 - Papers
   - [StochasticGameSolver: Computing Stationary Equilibria for Stochastic Games](https://doi.org/10.1016/j.jet.2003.10.001) - User-friendly program for computing stationary equilibria for stochastic games (Fortran).
 
-# For the reader
+## For the reader
 
 Has this project been useful to you? How? :)
 Let me know through a github issue!
