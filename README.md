@@ -15,6 +15,10 @@ Neumann provides utilities to research and implement game-theoretical algorithms
 
 # Related resources
 
+- Other frameworks
+  - [PRISM](https://www.prismmodelchecker.org/) - probabilistic model checker
+    - In particular, [PRISM-games](https://github.com/prismmodelchecker/prism-games)
+  - [STORM](https://www.stormchecker.org/) - probabilistic model checker
 - Similar libraries 
   - [Nashpy](https://github.com/drvinceknight/Nashpy) - Nash equilibria on 2 player games (Python). See [paper](https://www.theoj.org/joss-papers/joss.00904/10.21105.joss.00904.pdf).
   - [Alexrod](https://github.com/Axelrod-Python/Axelrod) - Iterated Prisioner's dilemma (Python).
