@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/crates/l/neumann)](https://github.com/saona-raimundo/neumann)
 [![Docs](https://docs.rs/neumann/badge.svg)](https://docs.rs/neumann/)
 [![Crate](https://img.shields.io/crates/v/neumann.svg)](https://crates.io/crates/neumann)
+[![dependency status](https://deps.rs/crate/neumann/latest/status.svg)](https://deps.rs/crate/neumann)
 
 Game Theory algorithms in Rust.
 
