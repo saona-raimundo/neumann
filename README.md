@@ -28,6 +28,7 @@ Waiting for better support for:
   - [STORM](https://www.stormchecker.org/) - probabilistic model checker
 - Similar libraries 
   - [Nashpy](https://github.com/drvinceknight/Nashpy) - Nash equilibria on 2 player games (Python). See [paper](https://www.theoj.org/joss-papers/joss.00904/10.21105.joss.00904.pdf).
+  - [nash-finder](https://github.com/lansiz/nash-finder) - Approximate Nash equilibrium of multiplayer games with few actions (Python).
   - [Alexrod](https://github.com/Axelrod-Python/Axelrod) - Iterated Prisioner's dilemma (Python).
   - [Gambit](http://www.gambit-project.org/) - General games (Python api).
   - [GameSeer](https://gametheorynetwork.com/resources/online-software-tools/) - generate phase portraits for normal form games under a variety of (user-customizable) evolutionary dynamics (Mathematica).
