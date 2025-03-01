@@ -38,6 +38,7 @@ Waiting for better support for:
   - Coursera - https://www.coursera.org/projects/game-theory-with-python
 - Papers
   - [StochasticGameSolver: Computing Stationary Equilibria for Stochastic Games](https://doi.org/10.1016/j.jet.2003.10.001) - User-friendly program for computing stationary equilibria for stochastic games (Fortran).
+  - [A survey on algorithms for Nash equilibria in finite normal-form games](https://arxiv.org/abs/2312.11063)
 
 ## For the reader
 
