@@ -51,6 +51,7 @@ Waiting for better support for:
 - Papers
   - [StochasticGameSolver: Computing Stationary Equilibria for Stochastic Games](https://doi.org/10.1016/j.jet.2003.10.001) - User-friendly program for computing stationary equilibria for stochastic games (Fortran).
   - [A survey on algorithms for Nash equilibria in finite normal-form games](https://arxiv.org/abs/2312.11063)
+  - [Computing Equilibria of N-Player Games with Arbitrary Accuracy](https://doi.org/10.2139/ssrn.1111767)
 
 ## For the reader
 
